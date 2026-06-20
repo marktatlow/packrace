@@ -1,27 +1,32 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { getStravaAuthUrl } from "@/lib/strava";
 
 export default async function HomePage() {
   const session = await getSession();
   if (session) redirect("/events");
 
+  const authUrl = await getStravaAuthUrl();
+
   return (
-    <main className="min-h-screen bg-[#0D0D0D] flex flex-col items-center justify-center px-6 max-w-[430px] mx-auto">
-      <div className="text-center space-y-6">
-        <div className="text-6xl">🏃</div>
-        <h1 className="text-4xl font-black tracking-tight">
-          Pack<span className="text-[#FF6B35]">Race</span>
-        </h1>
-        <p className="text-xl text-gray-400 font-medium">Run together. Win alone.</p>
-        <p className="text-sm text-gray-500 leading-relaxed">
-          Connect your Strava, get your handicap, and trash-talk your way to the finish line.
-        </p>
+    <main className="min-h-screen bg-[#0D0D0D] flex flex-col items-center justify-center px-6 text-center">
+      <div className="max-w-sm w-full space-y-8">
+        <div>
+          <div className="text-5xl mb-4">🏃</div>
+          <h1 className="text-3xl font-black text-white mb-2">Prediction Challenge</h1>
+          <p className="text-gray-400 text-base leading-relaxed">
+            Create a running event, predict your finish time, and see who knows themselves best.
+          </p>
+        </div>
         <a
-          href="/auth/strava"
-          className="block w-full bg-[#FF6B35] hover:bg-[#e5602f] text-white font-bold py-4 px-8 rounded-2xl text-lg transition-colors mt-8"
+          href={authUrl}
+          className="block w-full bg-[#FC4C02] text-white font-bold py-4 rounded-2xl text-base hover:bg-[#e04400] transition-colors"
         >
-          🚀 Connect with Strava
+          Connect with Strava
         </a>
+        <p className="text-gray-600 text-xs">
+          We only read your activity data — we never post anything.
+        </p>
       </div>
     </main>
   );

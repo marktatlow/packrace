@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ inviteCode: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ inviteCode: string }> }) {
+  const session = await getSessionFromRequest(req);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { inviteCode } = await params;
   const event = await prisma.event.findUnique({ where: { inviteCode } });
-  if (!event) return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
-
-  const session = await getSessionFromRequest(req);
-  if (!session) {
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/auth/strava?invite=${inviteCode}`
-    );
-  }
+  if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
   await prisma.eventParticipant.upsert({
     where: { eventId_userId: { eventId: event.id, userId: session.userId } },
@@ -20,5 +16,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ invi
     update: {},
   });
 
-  return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/events/${event.id}`);
+  return NextResponse.json({ eventId: event.id });
 }

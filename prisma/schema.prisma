@@ -21,76 +21,35 @@ model User {
   createdAt    DateTime @default(now())
 
   participations EventParticipant[]
-  activities     Activity[]
 }
 
 model Event {
   id          String   @id @default(cuid())
   name        String
-  description String?
   distanceKm  Float
   date        DateTime
+  windowStart DateTime
+  windowEnd   DateTime
   location    String?
   inviteCode  String   @unique @default(cuid())
+  createdBy   String
   createdAt   DateTime @default(now())
 
-  participants    EventParticipant[]
-  groupCommentary GroupCommentary[]
+  participants EventParticipant[]
 }
 
 model EventParticipant {
-  id                 String    @id @default(cuid())
-  eventId            String
-  userId             String
-  predictedTimeSecs  Int?
-  lowConfidence      Boolean   @default(false)
-  manualPrediction   Boolean   @default(false)
-  predictionLockedAt DateTime?
-  actualTimeSecs     Int?
-  stravaActivityId   BigInt?
-  joinedAt           DateTime  @default(now())
+  id               String    @id @default(cuid())
+  eventId          String
+  userId           String
+  predictedTimeSecs Int?
+  actualTimeSecs   Int?
+  stravaActivityId BigInt?
+  resultFetchedAt  DateTime?
+  joinedAt         DateTime  @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
-}
-
-model Activity {
-  id              String   @id @default(cuid())
-  stravaId        BigInt   @unique
-  userId          String
-  name            String
-  type            String
-  distanceMeters  Float
-  movingTimeSecs  Int
-  elapsedTimeSecs Int
-  totalElevation  Float    @default(0)
-  averageSpeed    Float
-  maxSpeed        Float    @default(0)
-  startDate       DateTime
-
-  bestEfforts BestEffort[]
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model BestEffort {
-  id             String   @id @default(cuid())
-  activityId     String
-  distanceMeters Int
-  timeSecs       Int
-  date           DateTime
-
-  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-
-  @@index([distanceMeters, timeSecs])
-}
-
-model GroupCommentary {
-  id          String   @id @default(cuid())
-  eventId     String
-  content     String   @db.Text
-  generatedAt DateTime @default(now())
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }

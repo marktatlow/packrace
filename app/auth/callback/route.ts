@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, setSessionCookie } from "@/lib/auth";
-import { syncUserActivities } from "@/lib/strava";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -56,13 +55,11 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Background sync
-  syncUserActivities(user.id).catch(console.error);
-
-  // Handle invite code
+  // Handle invite code (state = "join:inviteCode")
   let redirectTo = "/events";
-  if (state && state !== "none") {
-    const event = await prisma.event.findUnique({ where: { inviteCode: state } });
+  const inviteCode = state?.startsWith("join:") ? state.slice(5) : state;
+  if (inviteCode && inviteCode !== "none") {
+    const event = await prisma.event.findUnique({ where: { inviteCode } });
     if (event) {
       await prisma.eventParticipant.upsert({
         where: { eventId_userId: { eventId: event.id, userId: user.id } },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const session = await getSessionFromRequest(req);
@@ -8,10 +8,7 @@ export async function GET(req: NextRequest) {
 
   const events = await prisma.event.findMany({
     where: { participants: { some: { userId: session.userId } } },
-    include: {
-      participants: { include: { user: true } },
-      _count: { select: { participants: true } },
-    },
+    include: { participants: { include: { user: true } } },
     orderBy: { date: "asc" },
   });
 
@@ -23,9 +20,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, distanceKm, date, location, description } = body;
+  const { name, distanceKm, date, windowStart, windowEnd, location } = body;
 
-  if (!name || !distanceKm || !date) {
+  if (!name || !distanceKm || !date || !windowStart || !windowEnd) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -34,11 +31,13 @@ export async function POST(req: NextRequest) {
       name,
       distanceKm: parseFloat(distanceKm),
       date: new Date(date),
-      location,
-      description,
+      windowStart: new Date(windowStart),
+      windowEnd: new Date(windowEnd),
+      location: location || null,
+      createdBy: session.userId,
       participants: { create: { userId: session.userId } },
     },
   });
 
-  return NextResponse.json(event, { status: 201 });
+  return NextResponse.json(event);
 }
