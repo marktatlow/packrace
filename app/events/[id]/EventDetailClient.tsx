@@ -98,29 +98,52 @@ export default function EventDetailClient({
 
     async function fetchLive() {
       try {
-        // Trigger Strava pull
-        await fetch("/api/results", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId: event.id }),
-        });
-        // Fetch updated participants without reloading the page
+        // Always refresh display data from DB
         const res = await fetch(`/api/events/${event.id}`);
         if (!res.ok) return;
         const data = await res.json();
         if (!Array.isArray(data.participants)) return;
-        setLocalParticipants((prev) =>
-          prev.map((p) => {
-            const updated = data.participants.find((u: { userId: string; actualTimeSecs: number | null; resultFetchedAt: string | null }) => u.userId === p.userId);
-            if (!updated) return p;
-            return { ...p, actualTimeSecs: updated.actualTimeSecs, resultFetchedAt: updated.resultFetchedAt };
-          })
+
+        // Check if anyone is still missing a result
+        const missingResult = data.participants.some(
+          (u: { actualTimeSecs: number | null }) => !u.actualTimeSecs
         );
+
+        // Only hit Strava if someone still needs a result
+        if (missingResult) {
+          await fetch("/api/results", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eventId: event.id }),
+          });
+          // Re-fetch after Strava pull
+          const res2 = await fetch(`/api/events/${event.id}`);
+          if (!res2.ok) return;
+          const data2 = await res2.json();
+          if (Array.isArray(data2.participants)) {
+            setLocalParticipants((prev) =>
+              prev.map((p) => {
+                const updated = data2.participants.find((u: { userId: string; actualTimeSecs: number | null; resultFetchedAt: string | null }) => u.userId === p.userId);
+                if (!updated) return p;
+                return { ...p, actualTimeSecs: updated.actualTimeSecs, resultFetchedAt: updated.resultFetchedAt };
+              })
+            );
+          }
+        } else {
+          // Everyone has a result — just update display
+          setLocalParticipants((prev) =>
+            prev.map((p) => {
+              const updated = data.participants.find((u: { userId: string; actualTimeSecs: number | null; resultFetchedAt: string | null }) => u.userId === p.userId);
+              if (!updated) return p;
+              return { ...p, actualTimeSecs: updated.actualTimeSecs, resultFetchedAt: updated.resultFetchedAt };
+            })
+          );
+        }
       } catch { /* silent */ }
     }
 
     fetchLive();
-    const interval = setInterval(fetchLive, 15 * 60 * 1000);
+    const interval = setInterval(fetchLive, 60 * 1000); // every 60 seconds during live window
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const windowEnd = new Date(event.windowEnd);
@@ -398,7 +421,7 @@ export default function EventDetailClient({
             {windowStarted && !windowEnded && (
               <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-                <span className="text-green-400 text-xs font-semibold">Live — pulling results every 15 min</span>
+                <span className="text-green-400 text-xs font-semibold">Live — pulling results every 60 sec</span>
               </div>
             )}
 
