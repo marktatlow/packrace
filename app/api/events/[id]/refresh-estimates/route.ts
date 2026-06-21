@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
-import { fetchBestEfforts, computeVdotPrediction } from "@/lib/vdot";
+import { syncAndComputeVdot } from "@/lib/bestEfforts";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromRequest(req);
@@ -25,8 +25,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   for (const participant of event.participants) {
     try {
       const accessToken = await refreshTokenIfNeeded(participant.user.id);
-      const efforts = await fetchBestEfforts(accessToken);
-      const vdotPredictedSecs = computeVdotPrediction(efforts, targetMeters);
+
+      // Incremental sync: only fetches Strava activities newer than last sync,
+      // merges any improved best efforts into DB, then computes VDOT from DB.
+      // After the first full 180-day sync this only pulls a handful of new runs.
+      const vdotPredictedSecs = await syncAndComputeVdot(
+        participant.user.id,
+        accessToken,
+        targetMeters
+      );
 
       await prisma.eventParticipant.update({
         where: { id: participant.id },
@@ -35,10 +42,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       results.push({ name: participant.user.firstName, updated: !!vdotPredictedSecs });
     } catch (e) {
+      console.error(`Failed to refresh estimate for ${participant.user.firstName}:`, e);
       results.push({ name: participant.user.firstName, updated: false });
     }
-    // Small pause between participants to avoid rate limit spikes
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 500));
   }
 
   return NextResponse.json({ ok: true, results });

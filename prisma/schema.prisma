@@ -15,13 +15,27 @@ model User {
   profilePic   String?
   city         String?
   country      String?
-  accessToken      String
-  refreshToken     String
-  tokenExpiry      DateTime
-  needsReconnect   Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  accessToken        String
+  refreshToken       String
+  tokenExpiry        DateTime
+  needsReconnect     Boolean  @default(false)
+  stravaLastSyncAt   DateTime?
+  createdAt          DateTime @default(now())
 
   participations EventParticipant[]
+  bestEfforts    BestEffort[]
+}
+
+model BestEffort {
+  id              String   @id @default(cuid())
+  userId          String
+  distanceMeters  Int
+  timeSecs        Int
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, distanceMeters])
 }
 
 model Event {
