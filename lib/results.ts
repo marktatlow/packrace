@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
 import { refreshTokenIfNeeded } from "./strava";
-import { fetchBestEfforts, computeVdotPrediction, computePersonalBest, computePersonalBestFromStreams } from "./vdot";
 
 const STRAVA_API = "https://www.strava.com/api/v3";
 const RUN_TYPES = ["Run", "TrailRun", "VirtualRun"];
@@ -109,20 +108,14 @@ export async function fetchResultsForEvent(eventId: string, isLive = false) {
         }
       }
 
-      // Compute VDOT prediction and personal best from 180-day best efforts
-      const efforts = await fetchBestEfforts(accessToken);
-      const vdotPredictedSecs = computeVdotPrediction(efforts, targetMeters);
-      const pbFromEfforts = computePersonalBest(efforts, targetMeters);
-      // Fall back to stream-based sliding window for non-standard distances (e.g. 3km)
-      const personalBestSecs = pbFromEfforts ?? await computePersonalBestFromStreams(accessToken, targetMeters);
-
+      // Only update the actual race result here.
+      // VDOT/PB estimates are handled separately via /api/events/[id]/refresh-estimates
+      // to avoid burning Strava rate limits on every poll.
       await prisma.eventParticipant.update({
         where: { id: participant.id },
         data: {
           actualTimeSecs: bestSecs ?? undefined,
           stravaActivityId: bestActivityId ?? undefined,
-          vdotPredictedSecs: vdotPredictedSecs ?? undefined,
-          personalBestSecs: personalBestSecs ?? undefined,
           resultFetchedAt: new Date(),
         },
       });
