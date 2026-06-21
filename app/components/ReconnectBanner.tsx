@@ -3,34 +3,31 @@
 import { useEffect, useState } from "react";
 
 export default function ReconnectBanner() {
-  const [show, setShow] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => {
-        if (data?.needsReconnect) setShow(true);
+        if (data?.needsReconnect) {
+          setRedirecting(true);
+          setTimeout(() => {
+            window.location.href = "/auth/strava";
+          }, 2500);
+        }
       })
       .catch(() => {});
   }, []);
 
-  function handleReconnect() {
-    window.location.href = "/auth/strava";
-  }
-
-  if (!show) return null;
+  if (!redirecting) return null;
 
   return (
-    <div className="w-full bg-[#E63946] text-white text-sm flex items-center justify-between px-4 py-3 gap-3">
-      <span>
-        ⚠️ Your Strava connection has expired — we can&apos;t pull your results until you reconnect.
-      </span>
-      <button
-        onClick={handleReconnect}
-        className="shrink-0 bg-white text-[#E63946] font-semibold px-3 py-1 rounded hover:bg-red-50 transition-colors"
-      >
-        Reconnect Strava
-      </button>
+    <div className="w-full bg-[#E63946] text-white text-sm flex items-center justify-center px-4 py-3 gap-2">
+      <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+      </svg>
+      <span>Reconnecting your Strava account…</span>
     </div>
   );
 }
