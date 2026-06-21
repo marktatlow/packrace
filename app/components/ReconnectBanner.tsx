@@ -1,15 +1,26 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function ReconnectBanner() {
-  const router = useRouter();
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.needsReconnect) setShow(true);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleReconnect() {
     const res = await fetch("/api/auth/strava-url");
     const { url } = await res.json();
     window.location.href = url;
   }
+
+  if (!show) return null;
 
   return (
     <div className="w-full bg-[#E63946] text-white text-sm flex items-center justify-between px-4 py-3 gap-3">
