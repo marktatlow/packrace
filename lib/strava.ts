@@ -19,10 +19,14 @@ export async function refreshTokenIfNeeded(userId: string): Promise<string> {
   });
   const data = await res.json();
 
-  // If Strava returned an error, don't corrupt the DB — throw so the caller
-  // can handle it gracefully (e.g. skip this participant, show reconnect prompt)
+  // If Strava returned an error, don't corrupt the DB — mark user as needing
+  // reconnect and throw so the caller can handle gracefully
   if (!data.access_token || !data.refresh_token || !data.expires_at) {
     console.error(`Strava token refresh failed for user ${userId}:`, data);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { needsReconnect: true },
+    });
     throw new Error(`Strava token refresh failed: ${data.message ?? "unknown error"}`);
   }
 
@@ -32,6 +36,7 @@ export async function refreshTokenIfNeeded(userId: string): Promise<string> {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       tokenExpiry: new Date(data.expires_at * 1000),
+      needsReconnect: false,
     },
   });
 

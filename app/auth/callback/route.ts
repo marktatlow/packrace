@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
       tokenExpiry: new Date(tokenData.expires_at * 1000),
+      needsReconnect: false,
     },
   });
 

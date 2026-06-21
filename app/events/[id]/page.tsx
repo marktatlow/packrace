@@ -11,13 +11,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   const event = await prisma.event.findUnique({
     where: { id },
-    include: { participants: { include: { user: true } } },
+    include: { participants: { include: { user: true } }, raceCard: true },
   });
 
   if (!event) notFound();
 
   const isParticipant = event.participants.some((p) => p.userId === session.userId);
-  if (!isParticipant) redirect("/events");
 
   const inviteLink = `${process.env.NEXT_PUBLIC_BASE_URL}/join/${event.inviteCode}`;
   const now = new Date();
@@ -32,6 +31,8 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     profilePic: p.user.profilePic,
     predictedTimeSecs: p.predictedTimeSecs,
     actualTimeSecs: p.actualTimeSecs,
+    vdotPredictedSecs: p.vdotPredictedSecs,
+    personalBestSecs: p.personalBestSecs,
     resultFetchedAt: p.resultFetchedAt?.toISOString() ?? null,
   }));
 
@@ -48,9 +49,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       }}
       participants={participants}
       currentUserId={session.userId}
+      isParticipant={isParticipant}
       inviteLink={inviteLink}
       windowStarted={windowStarted}
       windowEnded={windowEnded}
+      raceCard={event.raceCard ? { commentary: event.raceCard.commentary, generatedAt: event.raceCard.generatedAt.toISOString() } : null}
     />
   );
 }

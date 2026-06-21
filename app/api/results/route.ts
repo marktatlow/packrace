@@ -13,10 +13,13 @@ export async function POST(req: NextRequest) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (new Date() < event.windowEnd) {
-    return NextResponse.json({ error: "Event window hasn't ended yet" }, { status: 400 });
+  const now = new Date();
+  // Allow fetching during or after the window, but not before it starts
+  if (now < event.windowStart) {
+    return NextResponse.json({ error: "Window hasn't started yet" }, { status: 400 });
   }
 
-  await fetchResultsForEvent(eventId);
+  const isLive = now >= event.windowStart && now <= event.windowEnd;
+  await fetchResultsForEvent(eventId, isLive);
   return NextResponse.json({ ok: true });
 }

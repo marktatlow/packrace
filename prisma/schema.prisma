@@ -15,10 +15,11 @@ model User {
   profilePic   String?
   city         String?
   country      String?
-  accessToken  String
-  refreshToken String
-  tokenExpiry  DateTime
-  createdAt    DateTime @default(now())
+  accessToken      String
+  refreshToken     String
+  tokenExpiry      DateTime
+  needsReconnect   Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
   participations EventParticipant[]
 }
@@ -36,16 +37,28 @@ model Event {
   createdAt   DateTime @default(now())
 
   participants EventParticipant[]
+  raceCard     RaceCard?
+}
+
+model RaceCard {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  commentary  String   @db.Text
+  generatedAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 model EventParticipant {
   id               String    @id @default(cuid())
   eventId          String
   userId           String
-  predictedTimeSecs Int?
-  actualTimeSecs   Int?
-  stravaActivityId BigInt?
-  resultFetchedAt  DateTime?
+  predictedTimeSecs  Int?
+  actualTimeSecs     Int?
+  vdotPredictedSecs  Int?
+  personalBestSecs   Int?
+  stravaActivityId   BigInt?
+  resultFetchedAt    DateTime?
   joinedAt         DateTime  @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

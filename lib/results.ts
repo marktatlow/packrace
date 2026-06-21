@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { refreshTokenIfNeeded } from "./strava";
+import { fetchBestEfforts, computeVdotPrediction, computePersonalBest, computePersonalBestFromStreams } from "./vdot";
 
 const STRAVA_API = "https://www.strava.com/api/v3";
 const RUN_TYPES = ["Run", "TrailRun", "VirtualRun"];
@@ -21,12 +22,8 @@ function fastestSegment(
     const windowDist = distanceStream[right] - distanceStream[left];
     if (windowDist >= targetMeters * 0.96) {
       const windowTime = timeStream[right] - timeStream[left];
-      // Pro-rate if slightly short (96–100%)
-      const adjustedTime = windowDist < targetMeters
-        ? Math.round(windowTime * (targetMeters / windowDist))
-        : windowTime;
-      if (bestSecs === null || adjustedTime < bestSecs) {
-        bestSecs = adjustedTime;
+      if (bestSecs === null || windowTime < bestSecs) {
+        bestSecs = windowTime;
       }
     }
   }
@@ -34,7 +31,7 @@ function fastestSegment(
   return bestSecs;
 }
 
-export async function fetchResultsForEvent(eventId: string) {
+export async function fetchResultsForEvent(eventId: string, isLive = false) {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: { participants: { include: { user: true } } },
@@ -44,8 +41,8 @@ export async function fetchResultsForEvent(eventId: string) {
   const targetMeters = event.distanceKm * 1000;
 
   for (const participant of event.participants) {
-    // Skip if already fetched
-    if (participant.resultFetchedAt) continue;
+    // During live window always re-fetch; after window skip if already done
+    if (!isLive && participant.resultFetchedAt) continue;
 
     const user = participant.user;
 
@@ -84,12 +81,8 @@ export async function fetchResultsForEvent(eventId: string) {
         // If run distance is close to target, use moving time directly (no streams needed)
         if (run.distance >= targetMeters * 0.96 && run.distance <= targetMeters * 1.04) {
           const secs = run.moving_time as number;
-          // Pro-rate if slightly short
-          const adjusted = run.distance < targetMeters
-            ? Math.round(secs * (targetMeters / run.distance))
-            : secs;
-          if (bestSecs === null || adjusted < bestSecs) {
-            bestSecs = adjusted;
+          if (bestSecs === null || secs < bestSecs) {
+            bestSecs = secs;
             bestActivityId = BigInt(run.id);
           }
           continue;
@@ -116,11 +109,20 @@ export async function fetchResultsForEvent(eventId: string) {
         }
       }
 
+      // Compute VDOT prediction and personal best from 180-day best efforts
+      const efforts = await fetchBestEfforts(accessToken);
+      const vdotPredictedSecs = computeVdotPrediction(efforts, targetMeters);
+      const pbFromEfforts = computePersonalBest(efforts, targetMeters);
+      // Fall back to stream-based sliding window for non-standard distances (e.g. 3km)
+      const personalBestSecs = pbFromEfforts ?? await computePersonalBestFromStreams(accessToken, targetMeters);
+
       await prisma.eventParticipant.update({
         where: { id: participant.id },
         data: {
           actualTimeSecs: bestSecs ?? undefined,
           stravaActivityId: bestActivityId ?? undefined,
+          vdotPredictedSecs: vdotPredictedSecs ?? undefined,
+          personalBestSecs: personalBestSecs ?? undefined,
           resultFetchedAt: new Date(),
         },
       });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { refreshTokenIfNeeded } from "@/lib/strava";
+import { fetchBestEfforts, computeVdotPrediction } from "@/lib/vdot";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromRequest(req);
@@ -44,6 +46,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: participant.id },
       data: { predictedTimeSecs: body.predictedTimeSecs },
     });
+
+    // Compute Strava Est. in background if not yet stored
+    if (!participant.vdotPredictedSecs) {
+      (async () => {
+        try {
+          const accessToken = await refreshTokenIfNeeded(session.userId);
+          const efforts = await fetchBestEfforts(accessToken);
+          const vdotPredictedSecs = computeVdotPrediction(efforts, event.distanceKm * 1000);
+          if (vdotPredictedSecs) {
+            await prisma.eventParticipant.update({
+              where: { id: participant.id },
+              data: { vdotPredictedSecs },
+            });
+          }
+        } catch { /* non-fatal */ }
+      })();
+    }
   }
 
   return NextResponse.json({ ok: true });
