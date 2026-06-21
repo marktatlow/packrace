@@ -11,7 +11,12 @@ export async function GET(req: NextRequest) {
     orderBy: { date: "asc" },
   });
 
-  return NextResponse.json(events);
+  // Serialize BigInt fields before returning
+  const safe = JSON.parse(JSON.stringify(events, (_k, v) =>
+    typeof v === "bigint" ? v.toString() : v
+  ));
+
+  return NextResponse.json(safe);
 }
 
 export async function POST(req: NextRequest) {

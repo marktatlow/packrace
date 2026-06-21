@@ -19,7 +19,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const isParticipant = event.participants.some((p) => p.userId === session.userId);
   if (!isParticipant) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  return NextResponse.json(event);
+  const safe = JSON.parse(JSON.stringify(event, (_k, v) =>
+    typeof v === "bigint" ? v.toString() : v
+  ));
+  return NextResponse.json(safe);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
