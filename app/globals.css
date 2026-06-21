@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0D0D0D;
-  --foreground: #ffffff;
-  --card: #1A1A2E;
-  --border: #2A2A4A;
+  --background: #F7F5F2;
+  --foreground: #111827;
+  --card: #ffffff;
+  --border: #E8E4DF;
   --accent: #FF6B35;
+  --accent-light: #FFF1EB;
   --danger: #E63946;
 }
 
