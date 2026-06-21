@@ -14,10 +14,8 @@ export default function ReconnectBanner() {
       .catch(() => {});
   }, []);
 
-  async function handleReconnect() {
-    const res = await fetch("/api/auth/strava-url");
-    const { url } = await res.json();
-    window.location.href = url;
+  function handleReconnect() {
+    window.location.href = "/auth/strava";
   }
 
   if (!show) return null;
