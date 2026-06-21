@@ -417,12 +417,13 @@ export default function EventDetailClient({
 
           {/* Leaderboard */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-[32px_1fr_56px_56px_48px] items-center px-3 py-2.5 border-b border-gray-100 bg-gray-50">
+            <div className="grid grid-cols-[28px_1fr_48px_48px_52px_44px] items-center px-3 py-2.5 border-b border-gray-100 bg-gray-50">
               <span/>
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Runner</span>
               <button onClick={() => setSort("predicted")} className="text-right">
                 <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "predicted" ? "text-[#FF6B35]" : "text-gray-400"}`}>Pred.</span>
               </button>
+              <span className="text-[10px] font-black text-purple-400 uppercase tracking-wide text-right">Est.</span>
               <button onClick={() => hasAnyActual && setSort("actual")} className="text-right">
                 <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "actual" ? "text-[#FF6B35]" : "text-gray-400"} ${!hasAnyActual ? "opacity-30" : ""}`}>Result</span>
               </button>
@@ -446,7 +447,7 @@ export default function EventDetailClient({
 
               return (
                 <div key={p.id} className={`border-b border-gray-100 last:border-0 ${isMe ? "bg-[#FFF6F2]" : ""}`}>
-                  <div className="grid grid-cols-[32px_1fr_56px_56px_48px] items-center px-3 py-3 gap-x-1">
+                  <div className="grid grid-cols-[28px_1fr_48px_48px_52px_44px] items-center px-3 py-3 gap-x-1">
                     <span className="text-base text-center leading-none">{rankIcon(idx)}</span>
                     <div className="flex items-center gap-2 min-w-0">
                       {p.profilePic
@@ -457,6 +458,9 @@ export default function EventDetailClient({
                     </div>
                     <span className={`text-xs text-right tabular-nums ${sort === "predicted" ? "text-gray-900 font-black" : "text-gray-400"}`}>
                       {p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : <span className="text-gray-200">—</span>}
+                    </span>
+                    <span className="text-xs text-right tabular-nums text-purple-400 font-semibold">
+                      {p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : <span className="text-gray-200">—</span>}
                     </span>
                     <span className={`text-sm text-right tabular-nums font-black ${p.actualTimeSecs ? "text-gray-900" : "text-gray-200"}`}>
                       {p.actualTimeSecs ? formatTime(p.actualTimeSecs) : "—"}
