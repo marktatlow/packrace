@@ -143,7 +143,7 @@ export default function EventDetailClient({
     }
 
     fetchLive();
-    const interval = setInterval(fetchLive, 60 * 1000); // every 60 seconds during live window
+    const interval = setInterval(fetchLive, 5 * 60 * 1000); // every 5 min during live window
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const windowEnd = new Date(event.windowEnd);
@@ -421,7 +421,7 @@ export default function EventDetailClient({
             {windowStarted && !windowEnded && (
               <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-                <span className="text-green-400 text-xs font-semibold">Live — pulling results every 60 sec</span>
+                <span className="text-green-400 text-xs font-semibold">Live — pulling results every 5 min</span>
               </div>
             )}
 
