@@ -19,6 +19,13 @@ export async function refreshTokenIfNeeded(userId: string): Promise<string> {
   });
   const data = await res.json();
 
+  // If Strava returned an error, don't corrupt the DB — throw so the caller
+  // can handle it gracefully (e.g. skip this participant, show reconnect prompt)
+  if (!data.access_token || !data.refresh_token || !data.expires_at) {
+    console.error(`Strava token refresh failed for user ${userId}:`, data);
+    throw new Error(`Strava token refresh failed: ${data.message ?? "unknown error"}`);
+  }
+
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -37,7 +44,7 @@ export async function getStravaAuthUrl(): Promise<string> {
     client_id: process.env.STRAVA_CLIENT_ID!,
     redirect_uri: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
     response_type: "code",
-    scope: "read,activity:read",
+    scope: "read,activity:read_all",
   });
   return `${base}?${params}`;
 }
