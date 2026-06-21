@@ -421,11 +421,11 @@ export default function EventDetailClient({
               <span/>
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Runner</span>
               <button onClick={() => setSort("predicted")} className="text-right">
-                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "predicted" ? "text-[#FF6B35]" : "text-gray-400"}`}>Pred.</span>
+                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "predicted" ? "text-[#FF6B35]" : "text-gray-400"}`}>User Est.</span>
               </button>
-              <span className="text-[10px] font-black text-purple-400 uppercase tracking-wide text-right">Est.</span>
+              <span className="text-[10px] font-black text-purple-400 uppercase tracking-wide text-right">Tips Est.</span>
               <button onClick={() => hasAnyActual && setSort("actual")} className="text-right">
-                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "actual" ? "text-[#FF6B35]" : "text-gray-400"} ${!hasAnyActual ? "opacity-30" : ""}`}>Result</span>
+                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "actual" ? "text-[#FF6B35]" : "text-gray-400"} ${!hasAnyActual ? "opacity-30" : ""}`}>Act.</span>
               </button>
               <button onClick={() => hasAnyActual && setSort("diff")} className="text-right">
                 <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "diff" ? "text-[#FF6B35]" : "text-gray-400"} ${!hasAnyActual ? "opacity-30" : ""}`}>Off by</span>

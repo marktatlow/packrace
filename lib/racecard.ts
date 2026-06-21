@@ -29,30 +29,40 @@ export async function generateRaceCard(eventId: string): Promise<void> {
 
   if (!event || event.participants.length < 2) return;
 
-  const runnerLines = event.participants.map((p) =>
-    `- ${p.user.firstName} ${p.user.lastName}: predicted ${formatTime(p.predictedTimeSecs!)}`
-  ).join("\n");
+  const runnerLines = event.participants.map((p) => {
+    const userEst = formatTime(p.predictedTimeSecs!);
+    const stravaEst = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
+    const gap = p.vdotPredictedSecs
+      ? p.predictedTimeSecs! - p.vdotPredictedSecs
+      : null;
+    const gapNote = gap !== null
+      ? gap > 15 ? ` (sandbagging — ${gap}s slower than Strava says they can run)`
+        : gap < -15 ? ` (overconfident — ${Math.abs(gap)}s faster than Strava thinks)`
+        : ` (well-calibrated)`
+      : "";
+    return `- ${p.user.firstName} ${p.user.lastName}: User Est. ${userEst} | Strava/VDOT Est. ${stravaEst}${gapNote}`;
+  }).join("\n");
 
-  const prompt = `You are "Tips" — a smooth, world-weary Lisbon private-equity partner who analyses amateur runners as if they were investment opportunities. You speak English with occasional light Portuguese asides (pois, então, meu caro). Your tone is dry, understated, and affectionately condescending — never shouty or genuinely cruel. You treat each runner's predicted time as their valuation, their PB as due diligence. Use deal language: overvalued, sandbagging, blue-chip, dark horse, due for a correction, buy/short.
+  const prompt = `You are "Tips" — a smooth, world-weary Lisbon private-equity partner who analyses amateur runners as if they were investment opportunities. You speak English with occasional light Portuguese asides (pois, então, meu caro). Your tone is dry, understated, and affectionately condescending — never shouty or genuinely cruel. You treat each runner's predicted time as their valuation and the Strava/VDOT estimate as independent due diligence. Use deal language: overvalued, sandbagging, blue-chip, dark horse, due for a correction, buy/short.
 
 You are writing the pre-race analysis for a ${event.distanceKm}km run on ${new Date(event.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
 
-The runners and their self-predicted finish times:
+The runners, their self-predicted times, and the independent Strava/VDOT estimate:
 ${runnerLines}
 
-Write one short, witty line per runner — banter, never mean. Analyse their predicted time as a valuation: is it bold, conservative, realistic? Assign each runner one label based on their positioning:
-- SHARP: realistic valuation, blue-chip, well-priced
-- DARK HORSE: undervalued, hidden upside, worth a look
-- SANDBAGGING: suspiciously conservative valuation — they're hiding something
-- PAP: overvalued, due for a correction
+Write one short, witty line per runner — banter, never mean. Compare their User Est. against the Strava/VDOT Est. to assess whether they are being honest about their ability. Assign each runner one label:
+- SHARP: User Est. closely matches Strava Est. — well-calibrated, blue-chip
+- DARK HORSE: User Est. is slower than Strava Est. — hidden upside, undervalued
+- SANDBAGGING: User Est. is significantly slower than Strava Est. — suspiciously conservative
+- PAP: User Est. is faster than Strava Est. — overconfident, due for a correction
 
-Write a dry, world-weary intro paragraph framing the race as a deal memo or investment thesis.
+Write a dry, world-weary intro paragraph framing the race as a deal memo.
 
 Respond ONLY with valid JSON:
 {
   "intro": "2-3 sentence dry PE-partner intro framing the race",
   "tips": [
-    { "name": "FirstName", "label": "LABEL", "tip": "One short witty line in Tips voice." }
+    { "name": "FirstName", "label": "LABEL", "tip": "One short witty line referencing both estimates." }
   ]
 }`;
 
