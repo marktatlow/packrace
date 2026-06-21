@@ -271,6 +271,9 @@ export default function EventDetailClient({
           {" · "}{event.distanceKm}km
           {event.location && ` · ${event.location}`}
         </p>
+        <p className="text-gray-600 text-xs mt-0.5">
+          Window {windowStart.toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit" })}–{windowEnd.toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}
+        </p>
 
         {/* Status pill */}
         <div className="mt-3">
@@ -584,13 +587,6 @@ export default function EventDetailClient({
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-        </div>
-
-        {/* Window info */}
-        <div className="bg-[#1A1A2E] border border-[#2A2A4A] rounded-2xl p-4 text-xs text-gray-500 space-y-1">
-          <p className="text-gray-400 font-semibold">Activity Window</p>
-          <p>Opens: {windowStart.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-          <p>Closes: {windowEnd.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
         </div>
 
         {/* Strava Est refresh */}
