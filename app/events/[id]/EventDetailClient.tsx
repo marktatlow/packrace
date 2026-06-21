@@ -267,11 +267,28 @@ export default function EventDetailClient({
       if (!b.personalBestSecs) return -1;
       return a.personalBestSecs - b.personalBestSecs;
     }
-    // diff
+    // diff — sort by absolute seconds difference
     if (!a.predictedTimeSecs || !a.actualTimeSecs) return 1;
     if (!b.predictedTimeSecs || !b.actualTimeSecs) return -1;
-    return pctDiff(a.predictedTimeSecs, a.actualTimeSecs) - pctDiff(b.predictedTimeSecs, b.actualTimeSecs);
+    return Math.abs(a.actualTimeSecs - a.predictedTimeSecs) - Math.abs(b.actualTimeSecs - b.predictedTimeSecs);
   });
+
+  // Compute badges for runners with results
+  const withResults = sorted.filter((p) => p.predictedTimeSecs && p.actualTimeSecs);
+  const winner = withResults[0] ?? null; // closest prediction (sorted by diff)
+  const fastest = withResults.length > 0
+    ? withResults.reduce((best, p) => (p.actualTimeSecs! < best.actualTimeSecs! ? p : best), withResults[0])
+    : null;
+  const sandbagger = withResults.length > 0
+    ? withResults.reduce((worst, p) => {
+        const gap = p.actualTimeSecs! - p.predictedTimeSecs!;
+        const worstGap = worst.actualTimeSecs! - worst.predictedTimeSecs!;
+        return gap > worstGap ? p : worst;
+      }, withResults[0])
+    : null;
+  const pbAlert = withResults.find(
+    (p) => p.personalBestSecs && p.actualTimeSecs && p.actualTimeSecs < p.personalBestSecs
+  ) ?? null;
 
   const tabClass = (t: string) =>
     `flex-1 py-3 text-sm font-semibold transition-colors ${tab === t ? "text-[#FF6B35] border-b-2 border-[#FF6B35]" : "text-gray-500 border-b-2 border-transparent"}`;
@@ -418,47 +435,60 @@ export default function EventDetailClient({
         {/* LEADERBOARD TAB */}
         {tab === "leaderboard" && (
           <>
+            {/* Live / status bar */}
             {windowStarted && !windowEnded && (
-              <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-                <span className="text-green-400 text-xs font-semibold">Live — pulling results every 5 min</span>
+              <div className="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                  <span className="text-green-400 text-xs font-semibold">Live — updates every 5 min</span>
+                </div>
+                <button onClick={fetchResults} disabled={fetchingResults}
+                  className="text-xs text-green-400 font-semibold disabled:opacity-50">
+                  {fetchingResults ? "…" : "Refresh"}
+                </button>
               </div>
             )}
 
-            <div className="flex gap-2">
-              <button onClick={refreshEstimates} disabled={refreshingEstimates}
-                className="flex-1 bg-[#1A1A2E] border border-[#2A2A4A] text-gray-300 font-semibold py-2.5 rounded-xl text-sm disabled:opacity-50 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors">
-                {refreshingEstimates ? "Refreshing..." : "⚡ Refresh Str. Est."}
-              </button>
-              {(windowStarted || windowEnded) && (
-                <button onClick={fetchResults} disabled={fetchingResults}
-                  className="flex-1 bg-[#1A1A2E] border border-[#2A2A4A] text-gray-300 font-semibold py-2.5 rounded-xl text-sm disabled:opacity-50 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors">
-                  {fetchingResults ? "Fetching..." : "🔄 Refresh Results"}
-                </button>
-              )}
-            </div>
+            {/* Winner hero card — only when results are in */}
+            {windowEnded && winner && (
+              <div className="bg-gradient-to-br from-[#FF6B35]/20 to-[#FF6B35]/5 border-2 border-[#FF6B35] rounded-2xl p-4 text-center">
+                <p className="text-xs font-bold text-[#FF6B35] uppercase tracking-widest mb-2">🏆 Winner</p>
+                <div className="flex items-center justify-center gap-3">
+                  <div className="relative">
+                    {winner.profilePic
+                      ? <img src={winner.profilePic} className="w-16 h-16 rounded-full object-cover border-2 border-[#FF6B35]" alt="" />
+                      : <div className="w-16 h-16 rounded-full bg-[#2A2A4A] border-2 border-[#FF6B35] flex items-center justify-center text-xl font-black text-white">{winner.firstName[0]}</div>
+                    }
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xl font-black text-white">{winner.firstName}</p>
+                    <p className="text-xs text-gray-400">Closest prediction</p>
+                    <p className="text-[#FF6B35] font-bold text-sm mt-0.5">
+                      Missed by {Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s
+                    </p>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <p className="text-3xl font-black text-white tabular-nums">{formatTime(winner.actualTimeSecs!)}</p>
+                    <p className="text-xs text-gray-500">actual time</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {/* Leaderboard — fixed grid, no scroll */}
+            {/* Leaderboard table */}
             <div className="bg-[#1A1A2E] border border-[#2A2A4A] rounded-2xl overflow-hidden">
-              {/* Column headers — tappable to sort */}
-              {/* Grid: rank(20) | name(flex) | Est(42) | Actual(42) | Diff(36) | Str.Est(42) | PB(36) */}
-              <div className="grid grid-cols-[20px_1fr_42px_42px_36px_46px_36px] items-center px-2 py-2 border-b border-[#2A2A4A] gap-x-1">
+              {/* Header */}
+              <div className="grid grid-cols-[28px_1fr_52px_52px_44px] items-center px-3 py-2 border-b border-[#2A2A4A] gap-x-1">
                 <span />
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Name</span>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Runner</span>
                 <button onClick={() => setSort("predicted")} className="text-right">
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "predicted" ? "text-[#FF6B35]" : "text-gray-500"}`}>Est.</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "predicted" ? "text-[#FF6B35]" : "text-gray-500"}`}>Pred.</span>
                 </button>
                 <button onClick={() => hasAnyActual && setSort("actual")} className="text-right">
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "actual" ? "text-[#FF6B35]" : "text-gray-500"} ${!hasAnyActual ? "opacity-30" : ""}`}>Act.</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "actual" ? "text-[#FF6B35]" : "text-gray-500"} ${!hasAnyActual ? "opacity-30" : ""}`}>Result</span>
                 </button>
                 <button onClick={() => hasAnyActual && setSort("diff")} className="text-right">
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "diff" ? "text-[#FF6B35]" : "text-gray-500"} ${!hasAnyActual ? "opacity-30" : ""}`}>Diff</span>
-                </button>
-                <button onClick={() => hasAnyVdot && setSort("vdot")} className="text-right">
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "vdot" ? "text-[#FF6B35]" : "text-gray-500"} ${!hasAnyVdot ? "opacity-30" : ""}`}>Str.Est</span>
-                </button>
-                <button onClick={() => hasAnyPb && setSort("pb")} className="text-right">
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "pb" ? "text-[#FF6B35]" : "text-gray-500"} ${!hasAnyPb ? "opacity-30" : ""}`}>PB</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide ${sort === "diff" ? "text-[#FF6B35]" : "text-gray-500"} ${!hasAnyActual ? "opacity-30" : ""}`}>Off by</span>
                 </button>
               </div>
 
@@ -469,41 +499,81 @@ export default function EventDetailClient({
               {sorted.map((p, idx) => {
                 const isMe = p.userId === currentUserId;
                 const hasBoth = p.predictedTimeSecs && p.actualTimeSecs;
-                const diff = hasBoth ? pctDiff(p.predictedTimeSecs!, p.actualTimeSecs!) : null;
-                const medal = sort === "diff" && diff !== null
-                  ? (idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`)
-                  : `${idx + 1}`;
+                const diffSecs = hasBoth ? Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!) : null;
+                const isWinner = winner?.userId === p.userId;
+                const isFastest = fastest?.userId === p.userId;
+                const isSandbagger = sandbagger?.userId === p.userId && withResults.length > 1;
+                const isPb = pbAlert?.userId === p.userId;
+                const rankEmoji = idx === 0 && isWinner ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`;
 
                 return (
                   <div key={p.id}
-                    className={`grid grid-cols-[20px_1fr_42px_42px_36px_46px_36px] items-center px-2 py-2.5 border-b border-[#2A2A4A] last:border-0 gap-x-1 ${isMe ? "bg-[#FF6B35]/5" : ""}`}>
-                    <span className="text-[11px] text-gray-500 text-center">{medal}</span>
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {p.profilePic
-                        ? <img src={p.profilePic} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
-                        : <div className="w-6 h-6 rounded-full bg-[#2A2A4A] flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">{p.firstName[0]}</div>
-                      }
-                      <span className={`text-xs truncate font-medium ${isMe ? "text-[#FF6B35]" : "text-white"}`}>{p.firstName}</span>
+                    className={`px-3 py-3 border-b border-[#2A2A4A] last:border-0 ${isMe ? "bg-[#FF6B35]/5" : ""}`}>
+                    <div className="grid grid-cols-[28px_1fr_52px_52px_44px] items-center gap-x-1">
+                      <span className="text-sm text-center font-bold text-gray-400">{rankEmoji}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {p.profilePic
+                          ? <img src={p.profilePic} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
+                          : <div className="w-8 h-8 rounded-full bg-[#2A2A4A] flex items-center justify-center text-xs font-black text-white flex-shrink-0">{p.firstName[0]}</div>
+                        }
+                        <span className={`text-sm font-bold truncate ${isMe ? "text-[#FF6B35]" : "text-white"}`}>{p.firstName}</span>
+                      </div>
+                      <span className={`text-xs text-right tabular-nums ${sort === "predicted" ? "text-white font-bold" : "text-gray-500"}`}>
+                        {p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : <span className="text-gray-700">—</span>}
+                      </span>
+                      <span className={`text-xs text-right tabular-nums font-bold ${p.actualTimeSecs ? (isFastest ? "text-blue-400" : "text-white") : "text-gray-700"}`}>
+                        {p.actualTimeSecs ? formatTime(p.actualTimeSecs) : "—"}
+                      </span>
+                      <span className={`text-xs text-right font-bold tabular-nums ${diffSecs === null ? "text-gray-700" : diffSecs <= 10 ? "text-green-400" : diffSecs <= 30 ? "text-amber-400" : "text-[#E63946]"}`}>
+                        {diffSecs !== null ? `${diffSecs}s` : "—"}
+                      </span>
                     </div>
-                    <span className={`text-[11px] text-right tabular-nums ${sort === "predicted" ? "text-white font-bold" : "text-gray-400"}`}>
-                      {p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : <span className="text-gray-700">—</span>}
-                    </span>
-                    <span className={`text-[11px] text-right tabular-nums ${sort === "actual" ? "text-white font-bold" : "text-gray-400"}`}>
-                      {p.actualTimeSecs ? formatTime(p.actualTimeSecs) : <span className="text-gray-700">—</span>}
-                    </span>
-                    <span className={`text-[11px] text-right font-bold tabular-nums ${diff === null ? "text-gray-700" : diff < 1 ? "text-green-400" : diff < 3 ? "text-amber-400" : "text-[#E63946]"}`}>
-                      {diff !== null ? `${diff.toFixed(1)}%` : "—"}
-                    </span>
-                    <span className={`text-[11px] text-right tabular-nums ${sort === "vdot" ? "text-white font-bold" : "text-gray-400"}`}>
-                      {p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : <span className="text-gray-700">—</span>}
-                    </span>
-                    <span className={`text-[11px] text-right tabular-nums ${sort === "pb" ? "text-white font-bold" : "text-gray-400"}`}>
-                      {p.personalBestSecs ? formatTime(p.personalBestSecs) : <span className="text-gray-700">—</span>}
-                    </span>
+                    {/* Badges row */}
+                    {(isWinner || isFastest || isSandbagger || isPb) && (
+                      <div className="flex gap-1.5 mt-1.5 ml-9 flex-wrap">
+                        {isWinner && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FF6B35]/20 text-[#FF6B35]">👑 CLOSEST PREDICTION</span>}
+                        {isFastest && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">⚡ FASTEST RUNNER</span>}
+                        {isSandbagger && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">🎭 BIGGEST SANDBAGGER</span>}
+                        {isPb && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">🏅 NEW PB</span>}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
+
+            {/* Stat summary chips */}
+            {withResults.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {fastest && (
+                  <div className="bg-[#1A1A2E] border border-[#2A2A4A] rounded-2xl p-3">
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">⚡ Fastest Runner</p>
+                    <p className="text-white font-bold text-sm">{fastest.firstName}</p>
+                    <p className="text-blue-400 font-black text-lg tabular-nums">{formatTime(fastest.actualTimeSecs!)}</p>
+                  </div>
+                )}
+                {sandbagger && withResults.length > 1 && (
+                  <div className="bg-[#1A1A2E] border border-[#2A2A4A] rounded-2xl p-3">
+                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">🎭 Biggest Sandbagger</p>
+                    <p className="text-white font-bold text-sm">{sandbagger.firstName}</p>
+                    <p className="text-amber-400 font-black text-lg tabular-nums">+{sandbagger.actualTimeSecs! - sandbagger.predictedTimeSecs!}s</p>
+                  </div>
+                )}
+                {pbAlert && (
+                  <div className="bg-[#1A1A2E] border border-[#2A2A4A] rounded-2xl p-3">
+                    <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">🏅 PB Alert</p>
+                    <p className="text-white font-bold text-sm">{pbAlert.firstName}</p>
+                    <p className="text-green-400 font-black text-lg tabular-nums">New personal best!</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Strava Est button — tucked away at bottom */}
+            <button onClick={refreshEstimates} disabled={refreshingEstimates}
+              className="w-full bg-[#1A1A2E] border border-[#2A2A4A] text-gray-500 font-semibold py-2 rounded-xl text-xs disabled:opacity-50 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors">
+              {refreshingEstimates ? "Refreshing estimates..." : "⚡ Refresh Strava Estimates"}
+            </button>
           </>
         )}
 
