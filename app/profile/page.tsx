@@ -18,6 +18,7 @@ export default async function ProfilePage() {
     <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto px-4 py-6">
       <div className="flex items-center gap-3 mb-8">
         <Link href="/events" className="text-white/50 text-xl hover:text-white transition-colors">←</Link>
+        <img src="/raceparty-icon.png" alt="RaceParty" className="w-7 h-7" />
         <h1 className="text-xl font-black text-[#F4F4F7]">Profile</h1>
       </div>
 

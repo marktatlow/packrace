@@ -119,10 +119,8 @@ export default function EventsPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[#F4F4F7] text-3xl font-black leading-tight">
-              Race<span className="text-[#FF2D94]">Party</span>
-            </h1>
-            <p className="text-white/40 text-xs mt-0.5 font-semibold tracking-widest uppercase">Run it. Predict it. Celebrate it.</p>
+            <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-8 w-auto" />
+            <p className="text-white/40 text-xs mt-1 font-semibold tracking-widest uppercase">Predict. Run. Get roasted.</p>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/events/new"
