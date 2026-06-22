@@ -9,8 +9,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+
+  // Require waiver acceptance
+  if (!body.waiverAccepted) {
+    return NextResponse.json({ error: "Waiver not accepted" }, { status: 400 });
+  }
+
   const event = await prisma.event.findUnique({ where: { id } });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+
+  // Record waiver acceptance on the user (once accepted, valid for all future events)
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { waiverAcceptedAt: new Date() },
+  });
 
   const participant = await prisma.eventParticipant.upsert({
     where: { eventId_userId: { eventId: event.id, userId: session.userId } },

@@ -20,6 +20,7 @@ model User {
   tokenExpiry        DateTime
   needsReconnect     Boolean  @default(false)
   stravaLastSyncAt   DateTime?
+  waiverAcceptedAt   DateTime?
   createdAt          DateTime @default(now())
 
   participations EventParticipant[]

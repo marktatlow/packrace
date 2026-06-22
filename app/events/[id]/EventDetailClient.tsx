@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { formatTime } from "@/lib/format";
 import type { RaceCardCommentary } from "@/lib/racecard";
+import WaiverModal from "@/app/components/WaiverModal";
 
 type Participant = {
   id: string;
@@ -60,6 +61,7 @@ export default function EventDetailClient({
   const [cardCopied, setCardCopied] = useState(false);
   const [localParticipants, setLocalParticipants] = useState(participants);
   const [joined, setJoined] = useState(isParticipant);
+  const [showWaiver, setShowWaiver] = useState(false);
   const predictInput = useRef<HTMLInputElement>(null);
 
   const me = localParticipants.find((p) => p.userId === currentUserId);
@@ -139,7 +141,12 @@ export default function EventDetailClient({
 
   async function joinEvent() {
     setJoining(true);
-    const res = await fetch(`/api/events/${event.id}/join`, { method: "POST" });
+    setShowWaiver(false);
+    const res = await fetch(`/api/events/${event.id}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ waiverAccepted: true }),
+    });
     if (res.ok) { setJoined(true); window.location.reload(); }
     setJoining(false);
   }
@@ -305,11 +312,19 @@ export default function EventDetailClient({
         </div>
       </div>
 
+      {/* ── WAIVER MODAL ── */}
+      {showWaiver && (
+        <WaiverModal
+          onAccept={joinEvent}
+          onCancel={() => setShowWaiver(false)}
+        />
+      )}
+
       {/* ── JOIN BANNER ── */}
       {!joined && (
         <div className="mx-4 mt-4 bg-white border-2 border-[#FF6B35] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
           <p className="text-sm text-gray-700 font-semibold">You&apos;re not in this race yet.</p>
-          <button onClick={joinEvent} disabled={joining}
+          <button onClick={() => setShowWaiver(true)} disabled={joining}
             className="bg-[#FF6B35] text-white font-black px-4 py-2 rounded-xl text-sm whitespace-nowrap disabled:opacity-50 shadow-sm">
             {joining ? "Joining..." : "Join Race"}
           </button>
