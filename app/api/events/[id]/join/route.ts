@@ -55,13 +55,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         });
       }
 
-      // Regenerate Tips so the new runner is included (need ≥2 participants with predictions)
-      const predictedCount = await prisma.eventParticipant.count({
-        where: { eventId: event.id, predictedTimeSecs: { not: null } },
-      });
-      if (predictedCount >= 1) {
-        await generateRaceCard(event.id).catch(() => { /* non-fatal */ });
-      }
+      // Always regenerate Tips when a new runner joins so they're included
+      await generateRaceCard(event.id).catch(() => { /* non-fatal */ });
     } catch { /* non-fatal */ }
   })();
 
