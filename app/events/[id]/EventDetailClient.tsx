@@ -325,8 +325,18 @@ export default function EventDetailClient({
                 {" · "}{event.distanceKm}km
                 {event.location && ` · ${event.location}`}
               </p>
+              {/* Window — show dates if window spans more than one calendar day */}
               <p className="text-white/50 text-xs mt-0.5">
-                Window {windowStart.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}–{windowEnd.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                {(() => {
+                  const startDay = windowStart.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                  const endDay   = windowEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                  const startTime = windowStart.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                  const endTime   = windowEnd.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                  const sameDay = windowStart.toDateString() === windowEnd.toDateString();
+                  return sameDay
+                    ? `Window · ${startDay}, ${startTime} – ${endTime}`
+                    : `Window · ${startDay} ${startTime} – ${endDay} ${endTime}`;
+                })()}
               </p>
             </div>
             {/* Status badge */}
