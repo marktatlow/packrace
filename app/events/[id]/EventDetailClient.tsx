@@ -305,10 +305,14 @@ export default function EventDetailClient({
         <div className="absolute top-0 left-0 w-48 h-48 bg-[#FF2D94]/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none translate-x-1/2 -translate-y-1/2" />
 
-        <div className="px-4 pt-10 pb-6 relative">
-          <Link href="/events" className="inline-flex items-center gap-1 text-white/65 text-xs font-semibold mb-4 hover:text-white/70 transition-colors">
-            ← All Races
-          </Link>
+        <div className="px-4 pt-5 pb-6 relative">
+          {/* Nav bar */}
+          <div className="flex items-center justify-between mb-5">
+            <Link href="/events" className="inline-flex items-center gap-1.5 text-white/65 text-xs font-black uppercase tracking-wider hover:text-white transition-colors">
+              ← Races
+            </Link>
+            <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-6 w-auto opacity-80" />
+          </div>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h1 className="text-[#F4F4F7] text-2xl font-black leading-tight">{event.name}</h1>
@@ -708,6 +712,13 @@ export default function EventDetailClient({
             {refreshingEstimates ? "Refreshing Strava estimates…" : "⚡ Refresh Strava Estimates"}
           </button>
         </section>
+
+        {/* ══ BRANDED FOOTER ══ */}
+        <div className="pt-4 pb-2 flex flex-col items-center gap-2 opacity-50">
+          <img src="/raceparty-icon.png" alt="" className="w-8 h-8" />
+          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-5 w-auto" />
+          <p className="text-white/40 text-[10px] font-black tracking-widest uppercase">Predict · Run · Get roasted</p>
+        </div>
 
       </div>
     </main>

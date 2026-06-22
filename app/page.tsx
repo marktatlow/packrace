@@ -17,8 +17,8 @@ export default async function HomePage() {
       <div className="relative max-w-sm w-full space-y-8">
         {/* Logo / Brand */}
         <div className="space-y-3">
-          <img src="/raceparty-icon.png" alt="RaceParty" className="w-24 h-24 mx-auto" />
-          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-10 w-auto mx-auto" />
+          <img src="/raceparty-icon.png" alt="RaceParty" className="w-32 h-32 mx-auto drop-shadow-[0_0_24px_rgba(255,45,148,0.5)]" />
+          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-16 w-auto mx-auto" />
           <p className="text-[#F4F4F7]/60 text-base leading-relaxed">
             Predict your finish time, race with friends,<br />see who knows themselves best.
           </p>

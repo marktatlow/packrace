@@ -43,10 +43,13 @@ export default function NewEventPage() {
 
   return (
     <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
         <Link href="/events" className="text-white/50 text-xl hover:text-white transition-colors">←</Link>
-        <h1 className="text-xl font-black text-[#F4F4F7]">New Race</h1>
+        <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-7 w-auto" />
+        <div className="w-7" />
       </div>
+      <h1 className="text-2xl font-black text-[#F4F4F7] mb-6">New Race</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>

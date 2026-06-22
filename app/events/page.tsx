@@ -113,29 +113,32 @@ export default function EventsPage() {
   return (
     <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto">
       {/* Hero header */}
-      <div className="relative overflow-hidden px-5 pt-12 pb-8 bg-[#0D0F14] border-b border-white/8">
-        {/* Neon glow behind logo area */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#FF2D94]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden bg-[#0D0F14] border-b border-white/8">
+        {/* Neon glows */}
+        <div className="absolute top-0 left-1/4 w-72 h-40 bg-[#FF2D94]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex items-center justify-between">
-          <div>
-            <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-8 w-auto" />
-            <p className="text-white/40 text-xs mt-1 font-semibold tracking-widest uppercase">Predict. Run. Get roasted.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/events/new"
-              className="bg-[#FF2D94] text-white text-sm font-black px-4 py-2 rounded-full shadow-[0_0_12px_rgba(255,45,148,0.4)]">
-              + New
-            </Link>
-            <Link href="/profile">
-              {me?.profilePic
-                ? <img src={me.profilePic} className="w-10 h-10 rounded-full object-cover border-2 border-white/20" alt={me.firstName} />
-                : <div className="w-10 h-10 rounded-full bg-[#FF2D94]/20 border-2 border-[#FF2D94]/40 flex items-center justify-center text-sm font-black text-[#FF2D94]">
-                    {me?.firstName?.[0] ?? "?"}
-                  </div>
-              }
-            </Link>
-          </div>
+        {/* Top bar: profile + new button */}
+        <div className="flex items-center justify-between px-5 pt-5">
+          <Link href="/profile">
+            {me?.profilePic
+              ? <img src={me.profilePic} className="w-9 h-9 rounded-full object-cover border-2 border-white/20" alt={me.firstName} />
+              : <div className="w-9 h-9 rounded-full bg-[#FF2D94]/20 border-2 border-[#FF2D94]/40 flex items-center justify-center text-sm font-black text-[#FF2D94]">
+                  {me?.firstName?.[0] ?? "?"}
+                </div>
+            }
+          </Link>
+          <Link href="/events/new"
+            className="bg-[#FF2D94] text-white text-sm font-black px-5 py-2 rounded-full shadow-[0_0_16px_rgba(255,45,148,0.5)]">
+            + New Race
+          </Link>
+        </div>
+
+        {/* Centred logo lockup */}
+        <div className="flex flex-col items-center pt-4 pb-8 px-5 relative">
+          <img src="/raceparty-icon.png" alt="" className="w-16 h-16 mb-3" />
+          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-14 w-auto" />
+          <p className="text-white/50 text-xs mt-2 font-black tracking-widest uppercase">Predict. Run. Get roasted.</p>
         </div>
       </div>
 
