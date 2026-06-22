@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const predictedCount = await prisma.eventParticipant.count({
         where: { eventId: event.id, predictedTimeSecs: { not: null } },
       });
-      if (predictedCount >= 2) {
+      if (predictedCount >= 1) {
         await generateRaceCard(event.id).catch(() => { /* non-fatal */ });
       }
     } catch { /* non-fatal */ }

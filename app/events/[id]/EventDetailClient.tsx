@@ -671,7 +671,7 @@ export default function EventDetailClient({
             <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-8 text-center">
               <p className="text-4xl mb-2">🎙️</p>
               <p className="text-white/65 text-sm font-semibold">{windowEnded ? "No post-race verdict yet." : "No pre-race tips yet."}</p>
-              {joined && <p className="text-white/50 text-xs mt-1">{windowEnded ? "Tap Regenerate — Tips will deliver the post-race verdict." : "Tap Generate — Tips will size up every runner."}</p>}
+              <p className="text-white/50 text-xs mt-1">Tips auto-generates when runners join. Check back shortly.</p>
             </div>
           )}
         </section>
