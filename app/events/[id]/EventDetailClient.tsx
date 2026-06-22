@@ -273,7 +273,13 @@ export default function EventDetailClient({
 
   // Badges
   const withResults = sorted.filter((p) => p.predictedTimeSecs && p.actualTimeSecs);
-  const winner = withResults[0] ?? null; // closest prediction (sorted by diff)
+  // Winner = beat Tips' estimate by the most (vdotPredictedSecs - actualTimeSecs, highest wins)
+  const winner = withResults.length > 0
+    ? withResults
+        .filter((p) => p.vdotPredictedSecs != null)
+        .sort((a, b) => (b.vdotPredictedSecs! - b.actualTimeSecs!) - (a.vdotPredictedSecs! - a.actualTimeSecs!))[0]
+        ?? withResults[0] // fallback: fastest if no vdot estimates exist
+    : null;
   const fastest = withResults.length > 0
     ? withResults.reduce((best, p) => p.actualTimeSecs! < best.actualTimeSecs! ? p : best, withResults[0])
     : null;
@@ -437,7 +443,7 @@ export default function EventDetailClient({
               <svg viewBox="0 0 80 100" className="absolute right-2 top-0 w-16 h-20 text-white opacity-10" fill="currentColor">
                 <circle cx="52" cy="10" r="9"/><path d="M52 19 C48 30 40 38 34 48 L26 68" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/><path d="M44 30 L60 22 M40 42 L28 38" stroke="currentColor" strokeWidth="5" fill="none" strokeLinecap="round"/><path d="M34 48 L46 70 L42 86" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/><path d="M26 68 L14 82" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/>
               </svg>
-              <p className="text-white/70 text-[10px] font-black uppercase tracking-widest mb-2">👑 Winner — Closest Prediction</p>
+              <p className="text-white/70 text-[10px] font-black uppercase tracking-widest mb-2">👑 Winner — Beat the Estimate</p>
               <div className="flex items-center gap-3">
                 {winner.profilePic
                   ? <img src={winner.profilePic} className="w-14 h-14 rounded-full object-cover border-2 border-white/20 flex-shrink-0" alt="" />
@@ -446,7 +452,10 @@ export default function EventDetailClient({
                 <div className="flex-1 min-w-0">
                   <p className="text-lg font-black text-white">{winner.firstName}</p>
                   <p className="text-white/70 text-xs">
-                    Predicted {formatTime(winner.predictedTimeSecs!)} · missed by <span className="text-white font-black">{Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s</span>
+                    {winner.vdotPredictedSecs
+                      ? <>Est. {formatTime(winner.vdotPredictedSecs)} · beat by <span className="text-white font-black">{winner.vdotPredictedSecs - winner.actualTimeSecs!}s</span></>
+                      : <>Ran <span className="text-white font-black">{formatTime(winner.actualTimeSecs!)}</span></>
+                    }
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -521,8 +530,12 @@ export default function EventDetailClient({
                 icon: "🎯",
                 title: "Dead Eye",
                 subtitle: "Closest prediction",
-                person: winner,
-                stat: winner ? `Off by ${Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s` : null,
+                person: withResults.length > 0 ? withResults.reduce((best, p) => {
+                  const bDiff = Math.abs(best.actualTimeSecs! - best.predictedTimeSecs!);
+                  const pDiff = Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!);
+                  return pDiff < bDiff ? p : best;
+                }, withResults[0]) : null,
+                stat: (() => { const p = withResults.length > 0 ? withResults.reduce((best, p) => Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!) < Math.abs(best.actualTimeSecs! - best.predictedTimeSecs!) ? p : best, withResults[0]) : null; return p ? `Off by ${Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!)}s` : null; })(),
                 bg: "bg-[#1A1D26]",
                 border: "border-[#FFE8DC]",
                 color: "text-[#FF2D94]",
@@ -595,7 +608,7 @@ export default function EventDetailClient({
                 <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
                   <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-1">🎯 Leading</p>
                   <p className="text-[#F4F4F7] font-bold">{winner.firstName}</p>
-                  <p className="text-[#FF2D94] font-black text-xl tabular-nums">Off by {Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s</p>
+                  <p className="text-[#FF2D94] font-black text-xl tabular-nums">{winner.vdotPredictedSecs ? `Beat est. by ${winner.vdotPredictedSecs - winner.actualTimeSecs!}s` : formatTime(winner.actualTimeSecs!)}</p>
                 </div>
               )}
             </div>
