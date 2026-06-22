@@ -5,7 +5,8 @@ import { formatTime } from "@/lib/format";
 import type { RaceCardCommentary } from "@/lib/racecard";
 import WaiverModal from "@/app/components/WaiverModal";
 import RunnerCard, { ReactionBar } from "./RunnerCard";
-import type { ReactionsMap } from "./page";
+import type { ReactionsMap, CommentsMap } from "./page";
+import CommentThread from "./CommentThread";
 
 type Participant = {
   id: string;
@@ -47,10 +48,11 @@ type Props = {
   windowEnded: boolean;
   raceCard: { commentary: string; generatedAt: string } | null;
   initialReactions: ReactionsMap;
+  initialComments: CommentsMap;
 };
 
 export default function EventDetailClient({
-  event, participants, currentUserId, isParticipant, inviteLink, windowStarted, windowEnded, raceCard: initialRaceCard, initialReactions
+  event, participants, currentUserId, isParticipant, inviteLink, windowStarted, windowEnded, raceCard: initialRaceCard, initialReactions, initialComments
 }: Props) {
   const [raceCard, setRaceCard] = useState(initialRaceCard);
   const commentary: RaceCardCommentary | null = raceCard ? JSON.parse(raceCard.commentary) : null;
@@ -272,9 +274,15 @@ export default function EventDetailClient({
 
   // Badges
   const withResults = sorted.filter((p) => p.predictedTimeSecs && p.actualTimeSecs);
-  const winner = withResults[0] ?? null;
+  const winner = withResults[0] ?? null; // closest prediction (sorted by diff)
   const fastest = withResults.length > 0
     ? withResults.reduce((best, p) => p.actualTimeSecs! < best.actualTimeSecs! ? p : best, withResults[0])
+    : null;
+  // Dark horse: beat Tips' estimate by the most (vdotPredictedSecs - actualTimeSecs, highest positive margin)
+  const darkHorse = withResults.length > 0
+    ? withResults
+        .filter((p) => p.vdotPredictedSecs && p.actualTimeSecs! < p.vdotPredictedSecs)
+        .sort((a, b) => (b.vdotPredictedSecs! - b.actualTimeSecs!) - (a.vdotPredictedSecs! - a.actualTimeSecs!))[0] ?? null
     : null;
   const sandbagger = withResults.length > 1
     ? withResults.reduce((worst, p) => {
@@ -475,6 +483,9 @@ export default function EventDetailClient({
                   onToggle={() => setExpandedCard(expandedCard === p.id ? null : p.id)}
                   onReact={(emoji) => handleReact("runner", p.id, emoji)}
                   eventId={event.id}
+                  windowEnded={windowEnded}
+                  currentUserId={currentUserId}
+                  comments={initialComments[p.id] ?? []}
                 />
               );
             })}
@@ -491,24 +502,25 @@ export default function EventDetailClient({
           {/* Stat chips */}
           {withResults.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
-              {fastest && withResults.length > 1 && (
+              {fastest && (
                 <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
-                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1">⚡ Fastest</p>
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1">⚡ Speed Demon</p>
                   <p className="text-[#1A2233] font-bold">{fastest.firstName}</p>
                   <p className="text-blue-500 font-black text-xl tabular-nums">{formatTime(fastest.actualTimeSecs!)}</p>
                 </div>
               )}
-              {sandbagger && withResults.length > 1 && (
+              {darkHorse && (
                 <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
-                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-wider mb-1">🎭 Sandbagger</p>
-                  <p className="text-[#1A2233] font-bold">{sandbagger.firstName}</p>
-                  <p className="text-amber-500 font-black text-xl tabular-nums">+{sandbagger.actualTimeSecs! - sandbagger.predictedTimeSecs!}s</p>
+                  <p className="text-[10px] font-black text-purple-500 uppercase tracking-wider mb-1">🐴 Dark Horse</p>
+                  <p className="text-[#1A2233] font-bold">{darkHorse.firstName}</p>
+                  <p className="text-purple-500 font-black text-xl tabular-nums">+{darkHorse.vdotPredictedSecs! - darkHorse.actualTimeSecs!}s faster</p>
                 </div>
               )}
-              {pbAlert && (
-                <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 col-span-2">
-                  <p className="text-[10px] font-black text-green-600 uppercase tracking-wider mb-1">🏅 PB Alert</p>
-                  <p className="text-[#1A2233] font-bold">{pbAlert.firstName} set a new personal best!</p>
+              {winner && (
+                <div className="bg-white rounded-2xl shadow-sm border border-[#FFF1EA] p-4 col-span-2">
+                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-1">🎯 Oracle — Nailed It</p>
+                  <p className="text-[#1A2233] font-bold">{winner.firstName} called it closest</p>
+                  <p className="text-[#F2591E] font-black text-xl tabular-nums">Off by {Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s</p>
                 </div>
               )}
             </div>
@@ -570,35 +582,60 @@ export default function EventDetailClient({
                   </div>
                 );
               })}
+              {/* Post-race overall summary */}
+              {windowEnded && commentary.postRaceIntro && (
+                <div className="bg-[#1A2233] rounded-2xl p-4">
+                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-2">🎩 Tips' Closing Memo</p>
+                  <p className="text-white/90 text-sm leading-relaxed italic">{commentary.postRaceIntro}</p>
+                </div>
+              )}
+
               <p className="text-center text-xs text-gray-300">
                 Generated {new Date(raceCard!.generatedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-8 text-center">
               <p className="text-4xl mb-2">🎙️</p>
               <p className="text-gray-400 text-sm font-semibold">No tips yet.</p>
-              {joined && <p className="text-gray-300 text-xs mt-1">Tap Generate — Tips will size up every runner.</p>}
+              {joined && <p className="text-gray-300 text-xs mt-1">Tap Generate — Tips will size up every runner.{windowEnded ? " Results are in — post-race verdicts included." : ""}</p>}
             </div>
           )}
         </section>
 
-        {/* ══ SECTION 4 — ACTIONS ══ */}
+        {/* ══ SECTION 4 — RACE BANTER ══ */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Race Banter</p>
+            <span className="text-[10px] text-gray-300">· event chat</span>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
+            <CommentThread
+              eventId={event.id}
+              targetType="event"
+              targetId={event.id}
+              currentUserId={currentUserId}
+              initialComments={initialComments[event.id] ?? []}
+            />
+          </div>
+        </section>
+
+        {/* ══ SECTION 5 — ACTIONS ══ */}
         <section className="space-y-3">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Race Options</p>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
             <p className="text-xs text-gray-500 font-bold mb-2">Invite Friends</p>
             <div className="flex gap-2 items-center">
               <p className="text-xs text-gray-400 flex-1 truncate font-mono">{inviteLink}</p>
-              <button onClick={copyInvite} className="bg-[#FF6B35] text-white text-xs font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm">
+              <button onClick={copyInvite} className="bg-[#F2591E] text-white text-xs font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm">
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
           </div>
 
           <button onClick={refreshEstimates} disabled={refreshingEstimates}
-            className="w-full bg-white border border-gray-200 text-gray-500 font-semibold py-2.5 rounded-xl text-xs disabled:opacity-40 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors shadow-sm">
+            className="w-full bg-white border border-[#ECE7DF] text-gray-500 font-semibold py-2.5 rounded-xl text-xs disabled:opacity-40 hover:border-[#F2591E] hover:text-[#F2591E] transition-colors shadow-sm">
             {refreshingEstimates ? "Refreshing Strava estimates…" : "⚡ Refresh Strava Estimates"}
           </button>
         </section>

@@ -2,11 +2,16 @@ import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import EventDetailClient from "./EventDetailClient";
+import type { CommentData } from "./CommentThread";
 
 export type ReactionsMap = {
   [targetId: string]: {
     [emoji: string]: { count: number; mine: boolean };
   };
+};
+
+export type CommentsMap = {
+  [targetId: string]: CommentData[];
 };
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,12 +20,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   const { id } = await params;
 
-  const [event, rawReactions] = await Promise.all([
+  const [event, rawReactions, rawComments] = await Promise.all([
     prisma.event.findUnique({
       where: { id },
       include: { participants: { include: { user: true } }, raceCard: true },
     }),
     prisma.reaction.findMany({ where: { eventId: id } }),
+    prisma.comment.findMany({ where: { eventId: id }, orderBy: { createdAt: "asc" } }),
   ]);
 
   if (!event) notFound();
@@ -31,13 +37,27 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const windowStarted = now >= event.windowStart;
   const windowEnded = now > event.windowEnd;
 
-  // Build reactions map: targetId → emoji → { count, mine }
+  // Reactions map
   const reactionsMap: ReactionsMap = {};
   for (const r of rawReactions) {
     if (!reactionsMap[r.targetId]) reactionsMap[r.targetId] = {};
     if (!reactionsMap[r.targetId][r.emoji]) reactionsMap[r.targetId][r.emoji] = { count: 0, mine: false };
     reactionsMap[r.targetId][r.emoji].count++;
     if (r.authorId === session.userId) reactionsMap[r.targetId][r.emoji].mine = true;
+  }
+
+  // Comments map: targetId → CommentData[]
+  const commentsMap: CommentsMap = {};
+  for (const c of rawComments) {
+    if (!commentsMap[c.targetId]) commentsMap[c.targetId] = [];
+    commentsMap[c.targetId].push({
+      id: c.id,
+      authorId: c.authorId,
+      authorName: c.authorName,
+      profilePic: c.profilePic,
+      body: c.body,
+      createdAt: c.createdAt.toISOString(),
+    });
   }
 
   const participants = event.participants.map((p) => ({
@@ -72,6 +92,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       windowEnded={windowEnded}
       raceCard={event.raceCard ? { commentary: event.raceCard.commentary, generatedAt: event.raceCard.generatedAt.toISOString() } : null}
       initialReactions={reactionsMap}
+      initialComments={commentsMap}
     />
   );
 }

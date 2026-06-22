@@ -54,6 +54,24 @@ model Event {
   participants EventParticipant[]
   raceCard     RaceCard?
   reactions    Reaction[]
+  comments     Comment[]
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  eventId    String
+  targetType String   // "runner" | "event"
+  targetId   String   // EventParticipant.id or Event.id
+  authorId   String
+  authorName String
+  profilePic String?
+  body       String
+  createdAt  DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([targetId])
 }
 
 model Reaction {
