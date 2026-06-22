@@ -509,27 +509,108 @@ export default function EventDetailClient({
             </button>
           )}
 
-          {/* Stat chips */}
-          {withResults.length > 0 && (
+          {/* ── TROPHY PRESENTATION (post-race only) ── */}
+          {windowEnded && withResults.length >= 2 && (() => {
+            // Worst performer: ran most seconds OVER their own prediction
+            const worstPerformer = withResults.reduce((worst, p) => {
+              const gap = p.actualTimeSecs! - p.predictedTimeSecs!;
+              const worstGap = worst.actualTimeSecs! - worst.predictedTimeSecs!;
+              return gap > worstGap ? p : worst;
+            }, withResults[0]);
+            // Beat own prediction by most (predicted - actual, most positive)
+            const beatByMost = withResults
+              .filter(p => p.actualTimeSecs! < p.predictedTimeSecs!)
+              .sort((a, b) => (b.predictedTimeSecs! - b.actualTimeSecs!) - (a.predictedTimeSecs! - a.actualTimeSecs!))[0] ?? null;
+
+            const trophies = [
+              {
+                icon: "⚡",
+                title: "Speed Machine",
+                subtitle: "Fastest finish",
+                person: fastest,
+                stat: fastest ? formatTime(fastest.actualTimeSecs!) : null,
+                bg: "bg-blue-50",
+                border: "border-blue-100",
+                color: "text-blue-600",
+              },
+              {
+                icon: "🎯",
+                title: "Dead Eye",
+                subtitle: "Closest prediction",
+                person: winner,
+                stat: winner ? `Off by ${Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s` : null,
+                bg: "bg-[#FFF8F5]",
+                border: "border-[#FFE8DC]",
+                color: "text-[#F2591E]",
+              },
+              {
+                icon: "🚀",
+                title: "Rocket",
+                subtitle: "Beat prediction by most",
+                person: beatByMost,
+                stat: beatByMost ? `${beatByMost.predictedTimeSecs! - beatByMost.actualTimeSecs!}s faster` : null,
+                bg: "bg-green-50",
+                border: "border-green-100",
+                color: "text-green-600",
+              },
+              {
+                icon: "🐌",
+                title: "Slow Coach",
+                subtitle: "Furthest over prediction",
+                person: worstPerformer,
+                stat: worstPerformer && worstPerformer.actualTimeSecs! > worstPerformer.predictedTimeSecs!
+                  ? `+${worstPerformer.actualTimeSecs! - worstPerformer.predictedTimeSecs!}s over`
+                  : "Everyone beat their time!",
+                bg: "bg-amber-50",
+                border: "border-amber-100",
+                color: "text-amber-600",
+              },
+            ];
+
+            return (
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">🏆 Trophy Presentation</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {trophies.map(({ icon, title, subtitle, person, stat, bg, border, color }) => (
+                    <div key={title} className={`${bg} border ${border} rounded-2xl p-4 flex flex-col items-center text-center`}>
+                      <span className="text-3xl mb-2">{icon}</span>
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${color}`}>{title}</p>
+                      <p className="text-[10px] text-gray-400 mb-2">{subtitle}</p>
+                      {person ? (
+                        <>
+                          <div className="mb-1">
+                            {person.profilePic
+                              ? <img src={person.profilePic} className="w-8 h-8 rounded-full object-cover mx-auto" alt="" />
+                              : <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-black text-gray-600 mx-auto">{person.firstName[0]}</div>
+                            }
+                          </div>
+                          <p className="text-sm font-black text-[#1A2233]">{person.firstName}</p>
+                          <p className={`text-xs font-bold tabular-nums ${color}`}>{stat}</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">{stat ?? "—"}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Live stat chips (during race only) */}
+          {!windowEnded && withResults.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               {fastest && (
                 <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
-                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1">⚡ Speed Demon</p>
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1">⚡ Fastest so far</p>
                   <p className="text-[#1A2233] font-bold">{fastest.firstName}</p>
                   <p className="text-blue-500 font-black text-xl tabular-nums">{formatTime(fastest.actualTimeSecs!)}</p>
                 </div>
               )}
-              {darkHorse && (
-                <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
-                  <p className="text-[10px] font-black text-purple-500 uppercase tracking-wider mb-1">🐴 Dark Horse</p>
-                  <p className="text-[#1A2233] font-bold">{darkHorse.firstName}</p>
-                  <p className="text-purple-500 font-black text-xl tabular-nums">+{darkHorse.vdotPredictedSecs! - darkHorse.actualTimeSecs!}s faster</p>
-                </div>
-              )}
               {winner && (
-                <div className="bg-white rounded-2xl shadow-sm border border-[#FFF1EA] p-4 col-span-2">
-                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-1">🎯 Oracle — Nailed It</p>
-                  <p className="text-[#1A2233] font-bold">{winner.firstName} called it closest</p>
+                <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
+                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-1">🎯 Leading</p>
+                  <p className="text-[#1A2233] font-bold">{winner.firstName}</p>
                   <p className="text-[#F2591E] font-black text-xl tabular-nums">Off by {Math.abs(winner.actualTimeSecs! - winner.predictedTimeSecs!)}s</p>
                 </div>
               )}
