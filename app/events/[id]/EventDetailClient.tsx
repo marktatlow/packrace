@@ -496,7 +496,7 @@ export default function EventDetailClient({
           {/* Refresh button */}
           {(windowStarted || windowEnded) && (
             <button onClick={fetchResults} disabled={fetchingResults}
-              className="w-full text-xs text-white/60 font-semibold py-2 rounded-xl border border-white/10 hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors disabled:opacity-40 bg-white">
+              className="w-full text-xs text-white/60 font-semibold py-2 rounded-xl border border-white/10 hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors disabled:opacity-40 bg-[#13151C]">
               {fetchingResults ? "Fetching results…" : "🔄 Refresh Results"}
             </button>
           )}
