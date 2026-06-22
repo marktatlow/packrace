@@ -77,16 +77,16 @@ export default function CommentThread({
             <div key={c.id} className="flex gap-2 items-start">
               {c.profilePic
                 ? <img src={c.profilePic} className="w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5" alt="" />
-                : <div className={`w-6 h-6 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[10px] font-black text-white ${c.authorId === currentUserId ? "bg-[#F2591E]" : "bg-[#1A2233]"}`}>
+                : <div className={`w-6 h-6 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[10px] font-black text-white ${c.authorId === currentUserId ? "bg-[#FF2D94]" : "bg-[#0D0F14]"}`}>
                     {c.authorName[0]}
                   </div>
               }
-              <div className="flex-1 bg-[#FBF8F3] rounded-xl px-3 py-2 min-w-0">
+              <div className="flex-1 bg-[#1A1D26] rounded-xl px-3 py-2 min-w-0">
                 <div className="flex items-baseline gap-1.5 flex-wrap">
-                  <span className="text-xs font-black text-[#1A2233]">{c.authorName}</span>
-                  <span className="text-[10px] text-gray-400">{timeAgo(c.createdAt)}</span>
+                  <span className="text-xs font-black text-[#F4F4F7]">{c.authorName}</span>
+                  <span className="text-[10px] text-white/40">{timeAgo(c.createdAt)}</span>
                 </div>
-                <p className="text-sm text-[#1A2233] mt-0.5 leading-snug break-words">{c.body}</p>
+                <p className="text-sm text-[#F4F4F7] mt-0.5 leading-snug break-words">{c.body}</p>
               </div>
             </div>
           ))}
@@ -102,12 +102,12 @@ export default function CommentThread({
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && post()}
           placeholder="Add a comment… 😄"
           maxLength={500}
-          className="flex-1 text-sm bg-[#FBF8F3] border border-[#ECE7DF] rounded-full px-4 py-2 focus:outline-none focus:border-[#F2591E] placeholder-gray-400"
+          className="flex-1 text-sm text-[#F4F4F7] bg-[#1A1D26] border border-white/10 rounded-full px-4 py-2 focus:outline-none focus:border-[#FF2D94] placeholder-white/30"
         />
         <button
           onClick={post}
           disabled={!draft.trim() || posting}
-          className="w-9 h-9 rounded-full bg-[#F2591E] flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-opacity"
+          className="w-9 h-9 rounded-full bg-[#FF2D94] flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-opacity"
         >
           <Send size={14} color="white" />
         </button>

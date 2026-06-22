@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      <body className="min-h-full bg-[#0D0D0D] text-white antialiased">
+      <body className="min-h-full bg-[#0D0F14] text-[#F4F4F7] antialiased">
         <ReconnectBanner />
         {children}
       </body>
