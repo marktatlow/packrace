@@ -135,7 +135,7 @@ export default function EventsPage() {
 
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">PackRace</p>
+            <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">RaceParty</p>
             <h1 className="text-white text-3xl font-black leading-tight">Your Races</h1>
             <p className="text-white/70 text-sm mt-1">Predict. Run. Compare.</p>
           </div>

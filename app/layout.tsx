@@ -3,8 +3,8 @@ import "./globals.css";
 import ReconnectBanner from "./components/ReconnectBanner";
 
 export const metadata: Metadata = {
-  title: "PackRace — Run together. Win alone.",
-  description: "Competitive running handicap app for friends",
+  title: "RaceParty — Run together. Win alone.",
+  description: "Predict your finish time, race with friends, see who nailed it.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
