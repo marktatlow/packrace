@@ -84,7 +84,7 @@ export default function CommentThread({
               <div className="flex-1 bg-[#1A1D26] rounded-xl px-3 py-2 min-w-0">
                 <div className="flex items-baseline gap-1.5 flex-wrap">
                   <span className="text-xs font-black text-[#F4F4F7]">{c.authorName}</span>
-                  <span className="text-[10px] text-white/40">{timeAgo(c.createdAt)}</span>
+                  <span className="text-[10px] text-white/65">{timeAgo(c.createdAt)}</span>
                 </div>
                 <p className="text-sm text-[#F4F4F7] mt-0.5 leading-snug break-words">{c.body}</p>
               </div>

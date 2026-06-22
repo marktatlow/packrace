@@ -9,24 +9,39 @@ export default async function HomePage() {
   const authUrl = await getStravaAuthUrl();
 
   return (
-    <main className="min-h-screen bg-[#0D0D0D] flex flex-col items-center justify-center px-6 text-center">
-      <div className="max-w-sm w-full space-y-8">
-        <div>
-          <div className="text-5xl mb-4">🏃</div>
-          <h1 className="text-3xl font-black text-white mb-2">Prediction Challenge</h1>
-          <p className="text-gray-400 text-base leading-relaxed">
-            Create a running event, predict your finish time, and see who knows themselves best.
+    <main className="min-h-screen bg-[#0D0F14] flex flex-col items-center justify-center px-6 text-center">
+      {/* Neon glow blobs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#FF2D94]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-48 h-48 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative max-w-sm w-full space-y-8">
+        {/* Logo / Brand */}
+        <div className="space-y-3">
+          <p className="text-6xl">🏃</p>
+          <h1 className="text-4xl font-black text-[#F4F4F7]">
+            Race<span className="text-[#FF2D94]">Party</span>
+          </h1>
+          <p className="text-[#F4F4F7]/60 text-base leading-relaxed">
+            Predict your finish time, race with friends,<br />see who knows themselves best.
+          </p>
+          <p className="text-xs font-black uppercase tracking-widest text-white/30">
+            Run it · Predict it · Celebrate it
           </p>
         </div>
-        <a
-          href={authUrl}
-          className="block w-full bg-[#FC4C02] text-white font-bold py-4 rounded-2xl text-base hover:bg-[#e04400] transition-colors"
-        >
-          Connect with Strava
-        </a>
-        <p className="text-gray-600 text-xs">
-          We only read your activity data — we never post anything.
-        </p>
+
+        {/* CTA */}
+        <div className="space-y-3">
+          <a
+            href={authUrl}
+            className="flex items-center justify-center gap-3 w-full bg-[#FF2D94] text-white font-black py-4 rounded-2xl text-base shadow-[0_0_24px_rgba(255,45,148,0.4)] hover:shadow-[0_0_32px_rgba(255,45,148,0.6)] transition-shadow"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+            Connect with Strava
+          </a>
+          <p className="text-white/30 text-xs">
+            We only read your activity data — we never post anything.
+          </p>
+        </div>
       </div>
     </main>
   );

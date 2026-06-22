@@ -306,19 +306,19 @@ export default function EventDetailClient({
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none translate-x-1/2 -translate-y-1/2" />
 
         <div className="px-4 pt-10 pb-6 relative">
-          <Link href="/events" className="inline-flex items-center gap-1 text-white/40 text-xs font-semibold mb-4 hover:text-white/70 transition-colors">
+          <Link href="/events" className="inline-flex items-center gap-1 text-white/65 text-xs font-semibold mb-4 hover:text-white/70 transition-colors">
             ← All Races
           </Link>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h1 className="text-[#F4F4F7] text-2xl font-black leading-tight">{event.name}</h1>
-              <p className="text-white/50 text-sm mt-1">
+              <p className="text-white/70 text-sm mt-1">
                 {eventDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
                 {" · "}{event.distanceKm}km
                 {event.location && ` · ${event.location}`}
               </p>
               {/* Window */}
-              <p className="text-white/30 text-xs mt-0.5">
+              <p className="text-white/50 text-xs mt-0.5">
                 {(() => {
                   const startDay = windowStart.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                   const endDay   = windowEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -371,7 +371,7 @@ export default function EventDetailClient({
         {/* ══ SECTION 1 — YOUR PREDICTION ══ */}
         {joined && (
           <section>
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Your Prediction</p>
+            <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-2">Your Prediction</p>
             <div className={`bg-[#13151C] rounded-2xl shadow-sm overflow-hidden border ${!windowStarted ? "border-[#FF2D94]" : "border-white/10"}`}>
               {!windowStarted && <div className="h-1 bg-[#FF2D94]" />}
               {windowStarted && !windowEnded && <div className="h-1 bg-[#39FF72]" />}
@@ -382,7 +382,7 @@ export default function EventDetailClient({
                     <div>
                       <p className="text-4xl font-black text-[#F4F4F7] tabular-nums">{formatTime(me.predictedTimeSecs)}</p>
                       {me.vdotPredictedSecs && (
-                        <p className="text-xs text-white/40 mt-1">Strava est. {formatTime(me.vdotPredictedSecs)}</p>
+                        <p className="text-xs text-white/65 mt-1">Strava est. {formatTime(me.vdotPredictedSecs)}</p>
                       )}
                     </div>
                     {!windowStarted && (
@@ -392,11 +392,11 @@ export default function EventDetailClient({
                       </button>
                     )}
                     {windowStarted && !windowEnded && (
-                      <span className="text-xs text-[#FF6A3D] font-black bg-[#FF6A3D/10] px-3 py-1.5 rounded-lg">🔒 Locked</span>
+                      <span className="text-xs text-[#FF6A3D] font-black bg-[#FF6A3D]/10 px-3 py-1.5 rounded-lg">🔒 Locked</span>
                     )}
                   </div>
                 ) : (
-                  <p className="text-white/40 text-sm">No prediction yet — enter one below</p>
+                  <p className="text-white/65 text-sm">No prediction yet — enter one below</p>
                 )}
                 {!windowStarted && (
                   <div className="mt-3 flex gap-2">
@@ -409,7 +409,7 @@ export default function EventDetailClient({
                   </div>
                 )}
                 {!windowStarted && (
-                  <p className="text-xs text-white/40 mt-2 text-center">
+                  <p className="text-xs text-white/65 mt-2 text-center">
                     Locks when window opens · {windowStart.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 )}
@@ -424,10 +424,10 @@ export default function EventDetailClient({
           <div className="flex items-baseline justify-between mb-3">
             <div>
               {windowEnded
-                ? <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Post-Race Results</p>
+                ? <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Post-Race Results</p>
                 : windowStarted
                 ? <p className="text-[10px] font-black text-[#39FF72] uppercase tracking-widest">● Live</p>
-                : <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Pre-Race</p>
+                : <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Pre-Race</p>
               }
               <p className="text-xl font-black text-[#F4F4F7]">Predictions vs. Actual</p>
             </div>
@@ -459,7 +459,7 @@ export default function EventDetailClient({
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-3xl font-black text-white tabular-nums">{formatTime(winner.actualTimeSecs!)}</p>
-                  <p className="text-white/50 text-[10px] uppercase tracking-wide">actual</p>
+                  <p className="text-white/70 text-[10px] uppercase tracking-wide">actual</p>
                 </div>
               </div>
             </div>
@@ -521,7 +521,7 @@ export default function EventDetailClient({
                 subtitle: "Fastest finish",
                 person: fastest,
                 stat: fastest ? formatTime(fastest.actualTimeSecs!) : null,
-                bg: "bg-[#00B7FF/10]",
+                bg: "bg-[#00B7FF]/10",
                 border: "border-blue-100",
                 color: "text-blue-600",
               },
@@ -541,7 +541,7 @@ export default function EventDetailClient({
                 subtitle: "Beat prediction by most",
                 person: beatByMost,
                 stat: beatByMost ? `${beatByMost.predictedTimeSecs! - beatByMost.actualTimeSecs!}s faster` : null,
-                bg: "bg-[#39FF72/10]",
+                bg: "bg-[#39FF72]/10",
                 border: "border-green-100",
                 color: "text-[#39FF72]",
               },
@@ -553,7 +553,7 @@ export default function EventDetailClient({
                 stat: worstPerformer && worstPerformer.actualTimeSecs! > worstPerformer.predictedTimeSecs!
                   ? `+${worstPerformer.actualTimeSecs! - worstPerformer.predictedTimeSecs!}s over`
                   : "Everyone beat their time!",
-                bg: "bg-[#FF6A3D/10]",
+                bg: "bg-[#FF6A3D]/10",
                 border: "border-amber-100",
                 color: "text-[#FF6A3D]",
               },
@@ -561,13 +561,13 @@ export default function EventDetailClient({
 
             return (
               <div>
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-3">🏆 Trophy Presentation</p>
+                <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-3">🏆 Trophy Presentation</p>
                 <div className="grid grid-cols-2 gap-3">
                   {trophies.map(({ icon, title, subtitle, person, stat, bg, border, color }) => (
                     <div key={title} className={`${bg} border ${border} rounded-2xl p-4 flex flex-col items-center text-center`}>
                       <span className="text-3xl mb-2">{icon}</span>
                       <p className={`text-[10px] font-black uppercase tracking-wider ${color}`}>{title}</p>
-                      <p className="text-[10px] text-white/40 mb-2">{subtitle}</p>
+                      <p className="text-[10px] text-white/65 mb-2">{subtitle}</p>
                       {person ? (
                         <>
                           <div className="mb-1">
@@ -580,7 +580,7 @@ export default function EventDetailClient({
                           <p className={`text-xs font-bold tabular-nums ${color}`}>{stat}</p>
                         </>
                       ) : (
-                        <p className="text-xs text-white/40 italic">{stat ?? "—"}</p>
+                        <p className="text-xs text-white/65 italic">{stat ?? "—"}</p>
                       )}
                     </div>
                   ))}
@@ -616,7 +616,7 @@ export default function EventDetailClient({
             <div className="flex items-center gap-3">
               <img src="/tips-avatar.jpeg" alt="Tips" className="w-12 h-12 rounded-full object-cover border-2 border-[#FF2D94] shadow-sm" />
               <div>
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">AI Tipster</p>
+                <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">AI Tipster</p>
                 <p className="text-xl font-black text-[#F4F4F7]">Tips</p>
               </div>
             </div>
@@ -656,7 +656,7 @@ export default function EventDetailClient({
                 </div>
               )}
 
-              <p className="text-center text-xs text-white/30">
+              <p className="text-center text-xs text-white/50">
                 Generated {new Date(raceCard!.generatedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                 {windowEnded && !commentary.postRaceIntro && (
                   <span className="block text-[#FF2D94] mt-1">Regenerate for post-race verdicts ↑</span>
@@ -666,8 +666,8 @@ export default function EventDetailClient({
           ) : (
             <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-8 text-center">
               <p className="text-4xl mb-2">🎙️</p>
-              <p className="text-white/40 text-sm font-semibold">{windowEnded ? "No post-race verdict yet." : "No pre-race tips yet."}</p>
-              {joined && <p className="text-white/30 text-xs mt-1">{windowEnded ? "Tap Regenerate — Tips will deliver the post-race verdict." : "Tap Generate — Tips will size up every runner."}</p>}
+              <p className="text-white/65 text-sm font-semibold">{windowEnded ? "No post-race verdict yet." : "No pre-race tips yet."}</p>
+              {joined && <p className="text-white/50 text-xs mt-1">{windowEnded ? "Tap Regenerate — Tips will deliver the post-race verdict." : "Tap Generate — Tips will size up every runner."}</p>}
             </div>
           )}
         </section>
@@ -675,8 +675,8 @@ export default function EventDetailClient({
         {/* ══ SECTION 4 — RACE BANTER ══ */}
         <section>
           <div className="flex items-center gap-2 mb-3">
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Race Banter</p>
-            <span className="text-[10px] text-white/30">· event chat</span>
+            <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Race Banter</p>
+            <span className="text-[10px] text-white/50">· event chat</span>
           </div>
           <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
             <CommentThread
@@ -691,12 +691,12 @@ export default function EventDetailClient({
 
         {/* ══ SECTION 5 — ACTIONS ══ */}
         <section className="space-y-3">
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Race Options</p>
+          <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Race Options</p>
 
           <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
             <p className="text-xs text-white/60 font-bold mb-2">Invite Friends</p>
             <div className="flex gap-2 items-center">
-              <p className="text-xs text-white/40 flex-1 truncate font-mono">{inviteLink}</p>
+              <p className="text-xs text-white/65 flex-1 truncate font-mono">{inviteLink}</p>
               <button onClick={copyInvite} className="bg-[#FF2D94] text-white text-xs font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm">
                 {copied ? "Copied!" : "Copy"}
               </button>
