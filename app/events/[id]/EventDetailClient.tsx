@@ -331,7 +331,7 @@ export default function EventDetailClient({
                   const startDay = windowStart.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                   const endDay   = windowEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                   const startTime = windowStart.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-                  const endTime   = windowEnd.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                  const endTime   = windowEnd.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
                   const sameDay = windowStart.toDateString() === windowEnd.toDateString();
                   return sameDay
                     ? `Window · ${startDay}, ${startTime} – ${endTime}`
