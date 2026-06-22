@@ -273,12 +273,12 @@ export default function EventDetailClient({
 
   // Badges
   const withResults = sorted.filter((p) => p.predictedTimeSecs && p.actualTimeSecs);
-  // Winner = beat Tips' estimate by the most (vdotPredictedSecs - actualTimeSecs, highest wins)
+  // Winner = beat Tips' estimate by the most — must have run FASTER than estimate (positive margin only)
   const winner = withResults.length > 0
     ? withResults
-        .filter((p) => p.vdotPredictedSecs != null)
+        .filter((p) => p.vdotPredictedSecs != null && p.actualTimeSecs! < p.vdotPredictedSecs)
         .sort((a, b) => (b.vdotPredictedSecs! - b.actualTimeSecs!) - (a.vdotPredictedSecs! - a.actualTimeSecs!))[0]
-        ?? withResults[0] // fallback: fastest if no vdot estimates exist
+        ?? null // no winner if nobody beat their estimate
     : null;
   const fastest = withResults.length > 0
     ? withResults.reduce((best, p) => p.actualTimeSecs! < best.actualTimeSecs! ? p : best, withResults[0])
