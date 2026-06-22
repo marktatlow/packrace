@@ -1,9 +1,11 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { formatTime } from "@/lib/format";
 import type { RaceCardCommentary } from "@/lib/racecard";
 import WaiverModal from "@/app/components/WaiverModal";
+import RunnerCard, { ReactionBar } from "./RunnerCard";
+import type { ReactionsMap } from "./page";
 
 type Participant = {
   id: string;
@@ -44,10 +46,11 @@ type Props = {
   windowStarted: boolean;
   windowEnded: boolean;
   raceCard: { commentary: string; generatedAt: string } | null;
+  initialReactions: ReactionsMap;
 };
 
 export default function EventDetailClient({
-  event, participants, currentUserId, isParticipant, inviteLink, windowStarted, windowEnded, raceCard: initialRaceCard
+  event, participants, currentUserId, isParticipant, inviteLink, windowStarted, windowEnded, raceCard: initialRaceCard, initialReactions
 }: Props) {
   const [raceCard, setRaceCard] = useState(initialRaceCard);
   const commentary: RaceCardCommentary | null = raceCard ? JSON.parse(raceCard.commentary) : null;
@@ -62,7 +65,30 @@ export default function EventDetailClient({
   const [localParticipants, setLocalParticipants] = useState(participants);
   const [joined, setJoined] = useState(isParticipant);
   const [showWaiver, setShowWaiver] = useState(false);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [reactions, setReactions] = useState<ReactionsMap>(initialReactions);
   const predictInput = useRef<HTMLInputElement>(null);
+
+  const handleReact = useCallback(async (targetType: "runner" | "tipster", targetId: string, emoji: string) => {
+    // Optimistic update
+    setReactions((prev) => {
+      const current = prev[targetId]?.[emoji] ?? { count: 0, mine: false };
+      const mine = !current.mine;
+      return {
+        ...prev,
+        [targetId]: {
+          ...prev[targetId],
+          [emoji]: { count: current.count + (mine ? 1 : -1), mine },
+        },
+      };
+    });
+    // Persist
+    await fetch("/api/reactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId: event.id, targetType, targetId, emoji }),
+    });
+  }, [event.id]);
 
   const me = localParticipants.find((p) => p.userId === currentUserId);
   const eventDate = new Date(event.date);
@@ -261,7 +287,6 @@ export default function EventDetailClient({
     (p) => p.personalBestSecs && p.actualTimeSecs && p.actualTimeSecs < p.personalBestSecs
   ) ?? null;
 
-  const rankIcon = (idx: number) => idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`;
 
   return (
     <main className="min-h-screen bg-[#F7F5F2] max-w-[430px] mx-auto pb-16">
@@ -406,7 +431,7 @@ export default function EventDetailClient({
 
           {/* Winner hero card */}
           {winner && hasAnyActual && (
-            <div className="relative bg-[#FF6B35] rounded-2xl p-4 mb-4 overflow-hidden shadow-md">
+            <div className="relative bg-[#F2591E] rounded-2xl p-4 mb-1 overflow-hidden shadow-md">
               <svg viewBox="0 0 80 100" className="absolute right-2 top-0 w-16 h-20 text-white opacity-10" fill="currentColor">
                 <circle cx="52" cy="10" r="9"/><path d="M52 19 C48 30 40 38 34 48 L26 68" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/><path d="M44 30 L60 22 M40 42 L28 38" stroke="currentColor" strokeWidth="5" fill="none" strokeLinecap="round"/><path d="M34 48 L46 70 L42 86" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/><path d="M26 68 L14 82" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/>
               </svg>
@@ -430,99 +455,60 @@ export default function EventDetailClient({
             </div>
           )}
 
-          {/* Leaderboard */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-[28px_1fr_48px_48px_52px_44px] items-center px-3 py-2.5 border-b border-gray-100 bg-gray-50">
-              <span/>
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Runner</span>
-              <button onClick={() => setSort("predicted")} className="text-right">
-                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "predicted" ? "text-[#FF6B35]" : "text-gray-400"}`}>User Est.</span>
-              </button>
-              <span className="text-[10px] font-black text-purple-400 uppercase tracking-wide text-right">Tips Est.</span>
-              <button onClick={() => hasAnyActual && setSort("actual")} className="text-right">
-                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "actual" ? "text-[#FF6B35]" : "text-gray-400"} ${!hasAnyActual ? "opacity-30" : ""}`}>Act.</span>
-              </button>
-              <button onClick={() => hasAnyActual && setSort("diff")} className="text-right">
-                <span className={`text-[10px] font-black uppercase tracking-wide ${sort === "diff" ? "text-[#FF6B35]" : "text-gray-400"} ${!hasAnyActual ? "opacity-30" : ""}`}>Off by</span>
-              </button>
-            </div>
-
-            {sorted.length === 0 && (
-              <p className="text-center text-gray-400 text-sm py-8">No participants yet.</p>
-            )}
-
+          {/* Expandable runner cards */}
+          <div className="space-y-2.5">
             {sorted.map((p, idx) => {
-              const isMe = p.userId === currentUserId;
-              const diffSecs = p.predictedTimeSecs && p.actualTimeSecs
-                ? Math.abs(p.actualTimeSecs - p.predictedTimeSecs) : null;
-              const isWinner = winner?.userId === p.userId && hasAnyActual;
-              const isFastest = fastest?.userId === p.userId && withResults.length > 1;
-              const isSandbagger = sandbagger?.userId === p.userId && withResults.length > 1;
-              const isPb = pbAlert?.userId === p.userId;
-
+              const verdict = commentary?.tips.find((t) => t.name === p.firstName);
               return (
-                <div key={p.id} className={`border-b border-gray-100 last:border-0 ${isMe ? "bg-[#FFF6F2]" : ""}`}>
-                  <div className="grid grid-cols-[28px_1fr_48px_48px_52px_44px] items-center px-3 py-3 gap-x-1">
-                    <span className="text-base text-center leading-none">{rankIcon(idx)}</span>
-                    <div className="flex items-center gap-2 min-w-0">
-                      {p.profilePic
-                        ? <img src={p.profilePic} className="w-8 h-8 rounded-full object-cover flex-shrink-0 shadow-sm" alt="" />
-                        : <div className="w-8 h-8 rounded-full bg-[#FF6B35] flex items-center justify-center text-xs font-black text-white flex-shrink-0">{p.firstName[0]}</div>
-                      }
-                      <span className={`text-sm font-bold truncate ${isMe ? "text-[#FF6B35]" : "text-gray-900"}`}>{p.firstName}</span>
-                    </div>
-                    <span className={`text-xs text-right tabular-nums ${sort === "predicted" ? "text-gray-900 font-black" : "text-gray-400"}`}>
-                      {p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : <span className="text-gray-200">—</span>}
-                    </span>
-                    <span className="text-xs text-right tabular-nums text-purple-400 font-semibold">
-                      {p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : <span className="text-gray-200">—</span>}
-                    </span>
-                    <span className={`text-sm text-right tabular-nums font-black ${p.actualTimeSecs ? "text-gray-900" : "text-gray-200"}`}>
-                      {p.actualTimeSecs ? formatTime(p.actualTimeSecs) : "—"}
-                    </span>
-                    <span className={`text-xs text-right font-black tabular-nums ${
-                      diffSecs === null ? "text-gray-200"
-                      : diffSecs <= 15 ? "text-green-500"
-                      : diffSecs <= 45 ? "text-amber-500"
-                      : "text-red-500"
-                    }`}>
-                      {diffSecs !== null ? `${diffSecs}s` : "—"}
-                    </span>
-                  </div>
-                  {(isWinner || isFastest || isSandbagger || isPb) && (
-                    <div className="flex gap-1.5 px-3 pb-2.5 flex-wrap">
-                      {isWinner    && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FFF1EB] text-[#FF6B35]">👑 CLOSEST PREDICTION</span>}
-                      {isFastest   && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-500">⚡ FASTEST RUNNER</span>}
-                      {isSandbagger && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">🎭 BIGGEST SANDBAGGER</span>}
-                      {isPb        && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-50 text-green-600">🏅 NEW PB</span>}
-                    </div>
-                  )}
-                </div>
+                <RunnerCard
+                  key={p.id}
+                  p={p}
+                  rank={idx}
+                  isWinner={!!(winner?.userId === p.userId && hasAnyActual)}
+                  isMe={p.userId === currentUserId}
+                  isFastest={!!(fastest?.userId === p.userId && withResults.length > 1)}
+                  isSandbagger={!!(sandbagger?.userId === p.userId && withResults.length > 1)}
+                  isPb={!!(pbAlert?.userId === p.userId)}
+                  verdict={verdict}
+                  reactions={reactions[p.id] ?? {}}
+                  isExpanded={expandedCard === p.id}
+                  onToggle={() => setExpandedCard(expandedCard === p.id ? null : p.id)}
+                  onReact={(emoji) => handleReact("runner", p.id, emoji)}
+                  eventId={event.id}
+                />
               );
             })}
           </div>
 
+          {/* Refresh button */}
+          {(windowStarted || windowEnded) && (
+            <button onClick={fetchResults} disabled={fetchingResults}
+              className="w-full text-xs text-gray-500 font-semibold py-2 rounded-xl border border-[#ECE7DF] hover:border-[#F2591E] hover:text-[#F2591E] transition-colors disabled:opacity-40 bg-white">
+              {fetchingResults ? "Fetching results…" : "🔄 Refresh Results"}
+            </button>
+          )}
+
           {/* Stat chips */}
           {withResults.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-3">
               {fastest && withResults.length > 1 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
                   <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1">⚡ Fastest</p>
-                  <p className="text-gray-900 font-bold">{fastest.firstName}</p>
+                  <p className="text-[#1A2233] font-bold">{fastest.firstName}</p>
                   <p className="text-blue-500 font-black text-xl tabular-nums">{formatTime(fastest.actualTimeSecs!)}</p>
                 </div>
               )}
               {sandbagger && withResults.length > 1 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
                   <p className="text-[10px] font-black text-amber-500 uppercase tracking-wider mb-1">🎭 Sandbagger</p>
-                  <p className="text-gray-900 font-bold">{sandbagger.firstName}</p>
+                  <p className="text-[#1A2233] font-bold">{sandbagger.firstName}</p>
                   <p className="text-amber-500 font-black text-xl tabular-nums">+{sandbagger.actualTimeSecs! - sandbagger.predictedTimeSecs!}s</p>
                 </div>
               )}
               {pbAlert && (
                 <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 col-span-2">
                   <p className="text-[10px] font-black text-green-600 uppercase tracking-wider mb-1">🏅 PB Alert</p>
-                  <p className="text-gray-900 font-bold">{pbAlert.firstName} set a new personal best!</p>
+                  <p className="text-[#1A2233] font-bold">{pbAlert.firstName} set a new personal best!</p>
                 </div>
               )}
             </div>
@@ -554,8 +540,12 @@ export default function EventDetailClient({
 
           {commentary ? (
             <div className="space-y-3">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
                 <p className="text-gray-600 text-sm leading-relaxed italic">{commentary.intro}</p>
+                <ReactionBar
+                  reactions={reactions[event.id] ?? {}}
+                  onReact={(emoji) => handleReact("tipster", event.id, emoji)}
+                />
               </div>
               {commentary.tips.map((tip, idx) => {
                 const style = tip.label ? labelStyles[tip.label] : null;
