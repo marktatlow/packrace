@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { formatWindow } from "@/lib/format";
 
 type Participant = { id: string; userId: string; user: { firstName: string; profilePic: string | null } };
 
@@ -79,11 +80,7 @@ export default function EventsPage() {
                   {e.distanceKm}km{e.location && ` · ${e.location}`}
                 </p>
                 <p className="text-xs text-[#00B7FF]/80 mt-0.5 font-semibold">
-                  🕐 {new Date(e.windowStart).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}
-                  {", "}
-                  {new Date(e.windowStart).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}
-                  {" – "}
-                  {new Date(e.windowEnd).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London", timeZoneName: "short" })}
+                  🕐 {formatWindow(new Date(e.windowStart), new Date(e.windowEnd))}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">
