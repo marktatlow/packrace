@@ -44,7 +44,8 @@ export default function EventsPage() {
     if (now >= start && now <= end) return { text: "● Live", color: "text-[#39FF72] bg-[#39FF72]/10 border border-[#39FF72]/30" };
     if (now < start) {
       const days = Math.ceil((start.getTime() - now.getTime()) / 86400000);
-      return { text: days === 0 ? "Today" : `In ${days}d`, color: "text-[#00B7FF] bg-[#00B7FF]/10 border border-[#00B7FF]/30" };
+      const label = days <= 1 ? "Today" : `In ${days}d`;
+      return { text: label, color: "text-[#00B7FF] bg-[#00B7FF]/10 border border-[#00B7FF]/30" };
     }
     return { text: "Finished", color: "text-white/40 bg-white/5 border border-white/10" };
   }
@@ -75,9 +76,14 @@ export default function EventsPage() {
               <div className="min-w-0">
                 <p className="font-black text-[#F4F4F7] text-lg truncate leading-tight">{e.name}</p>
                 <p className="text-sm text-white/50 mt-0.5">
-                  {new Date(e.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                  {" · "}{e.distanceKm}km
-                  {e.location && ` · ${e.location}`}
+                  {e.distanceKm}km{e.location && ` · ${e.location}`}
+                </p>
+                <p className="text-xs text-[#00B7FF]/80 mt-0.5 font-semibold">
+                  🕐 {new Date(e.windowStart).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}
+                  {", "}
+                  {new Date(e.windowStart).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}
+                  {" – "}
+                  {new Date(e.windowEnd).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London", timeZoneName: "short" })}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">

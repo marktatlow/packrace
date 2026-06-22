@@ -14,15 +14,24 @@ export default function NewEventPage() {
     setError("");
 
     const fd = new FormData(e.currentTarget);
+
+    // datetime-local gives us a local-time string e.g. "2026-06-23T05:00"
+    // new Date() in the browser interprets this as local (BST), then toISOString() converts to UTC
+    const toUTC = (val: FormDataEntryValue | null) =>
+      val ? new Date(val as string).toISOString() : null;
+
+    const windowStart = toUTC(fd.get("windowStart"));
+    const windowEnd = toUTC(fd.get("windowEnd"));
+
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: fd.get("name"),
         distanceKm: fd.get("distanceKm"),
-        date: fd.get("date"),
-        windowStart: fd.get("windowStart"),
-        windowEnd: fd.get("windowEnd"),
+        date: windowStart, // use window start as the event date
+        windowStart,
+        windowEnd,
         location: fd.get("location"),
       }),
     });
@@ -51,6 +60,12 @@ export default function NewEventPage() {
       </div>
       <h1 className="text-2xl font-black text-[#F4F4F7] mb-6">New Race</h1>
 
+      {/* BST notice */}
+      <div className="bg-[#00B7FF]/10 border border-[#00B7FF]/30 rounded-xl px-4 py-3 mb-6 flex items-center gap-2">
+        <span className="text-[#00B7FF] text-lg">🕐</span>
+        <p className="text-[#00B7FF] text-xs font-bold">All times are in BST (British Summer Time, GMT+1)</p>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className={labelClass}>Race name</label>
@@ -62,29 +77,24 @@ export default function NewEventPage() {
           <input name="distanceKm" type="number" step="0.01" min="0.1" required placeholder="5" className={inputClass} />
         </div>
 
-        <div>
-          <label className={labelClass}>Race date</label>
-          <input name="date" type="datetime-local" required className={inputClass} />
-        </div>
-
         <div className="bg-[#13151C] border border-white/8 rounded-2xl p-4 space-y-4">
           <div>
-            <p className="text-xs font-black text-[#00B7FF] uppercase tracking-widest mb-0.5">Activity Window</p>
-            <p className="text-xs text-white/40">Runs within this window count as results.</p>
+            <p className="text-xs font-black text-[#00B7FF] uppercase tracking-widest mb-0.5">Activity Window <span className="text-[#00B7FF]/60 normal-case font-semibold">(BST)</span></p>
+            <p className="text-xs text-white/40">Strava runs within this window count as results.</p>
           </div>
           <div>
-            <label className={labelClass}>Window opens</label>
+            <label className={labelClass}>Window opens <span className="text-[#00B7FF] normal-case font-semibold">(BST)</span></label>
             <input name="windowStart" type="datetime-local" required className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Window closes</label>
+            <label className={labelClass}>Window closes <span className="text-[#00B7FF] normal-case font-semibold">(BST)</span></label>
             <input name="windowEnd" type="datetime-local" required className={inputClass} />
           </div>
         </div>
 
         <div>
           <label className={labelClass}>Location (optional)</label>
-          <input name="location" placeholder="Central Park" className={inputClass} />
+          <input name="location" placeholder="Victoria Park, London" className={inputClass} />
         </div>
 
         {error && <p className="text-[#FF6A3D] text-sm font-semibold">{error}</p>}

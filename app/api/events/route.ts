@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, distanceKm, date, windowStart, windowEnd, location } = body;
 
-  if (!name || !distanceKm || !date || !windowStart || !windowEnd) {
+  if (!name || !distanceKm || !windowStart || !windowEnd) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     data: {
       name,
       distanceKm: parseFloat(distanceKm),
-      date: new Date(date),
+      date: new Date(date ?? windowStart), // fall back to windowStart if no date
       windowStart: new Date(windowStart),
       windowEnd: new Date(windowEnd),
       location: location || null,

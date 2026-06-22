@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { formatTime } from "@/lib/format";
+import { formatTime, formatWindow, formatBST } from "@/lib/format";
 import type { RaceCardCommentary } from "@/lib/racecard";
 import WaiverModal from "@/app/components/WaiverModal";
 import RunnerCard, { ReactionBar } from "./RunnerCard";
@@ -93,7 +93,6 @@ export default function EventDetailClient({
   }, [event.id]);
 
   const me = localParticipants.find((p) => p.userId === currentUserId);
-  const eventDate = new Date(event.date);
   const windowStart = new Date(event.windowStart);
   const windowEnd = new Date(event.windowEnd);
   const hasAnyActual = localParticipants.some((p) => p.actualTimeSecs);
@@ -317,22 +316,11 @@ export default function EventDetailClient({
             <div className="min-w-0">
               <h1 className="text-[#F4F4F7] text-2xl font-black leading-tight">{event.name}</h1>
               <p className="text-white/70 text-sm mt-1">
-                {eventDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                {" · "}{event.distanceKm}km
+                {event.distanceKm}km
                 {event.location && ` · ${event.location}`}
               </p>
-              {/* Window */}
-              <p className="text-white/50 text-xs mt-0.5">
-                {(() => {
-                  const startDay = windowStart.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-                  const endDay   = windowEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-                  const startTime = windowStart.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-                  const endTime   = windowEnd.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-                  const sameDay = windowStart.toDateString() === windowEnd.toDateString();
-                  return sameDay
-                    ? `Window · ${startDay}, ${startTime} – ${endTime}`
-                    : `Window · ${startDay} ${startTime} – ${endDay} ${endTime}`;
-                })()}
+              <p className="text-[#00B7FF] text-xs font-bold mt-1.5">
+                🕐 {formatWindow(windowStart, windowEnd)}
               </p>
             </div>
             {/* Status badge */}
@@ -414,7 +402,7 @@ export default function EventDetailClient({
                 )}
                 {!windowStarted && (
                   <p className="text-xs text-white/65 mt-2 text-center">
-                    Locks when window opens · {windowStart.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}
+                    Locks when window opens · {formatBST(windowStart)}
                   </p>
                 )}
               </div>

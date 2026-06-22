@@ -1,3 +1,29 @@
+const BST = "Europe/London";
+
+/** Format a Date as "23 Jun, 06:00 BST" */
+export function formatBST(date: Date, opts: { includeDate?: boolean; includeTime?: boolean } = {}): string {
+  const { includeDate = true, includeTime = true } = opts;
+  const parts: string[] = [];
+  if (includeDate) {
+    parts.push(date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: BST }));
+  }
+  if (includeTime) {
+    parts.push(date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: BST, timeZoneName: "short" }));
+  }
+  return parts.join(", ");
+}
+
+/** Format window: "23 Jun, 06:00 – 11:00 BST" or multi-day "23 Jun 06:00 – 24 Jun 11:00 BST" */
+export function formatWindow(start: Date, end: Date): string {
+  const startDay = start.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: BST });
+  const endDay   = end.toLocaleDateString("en-GB",   { day: "numeric", month: "short", timeZone: BST });
+  const startTime = start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: BST });
+  const endTime   = end.toLocaleTimeString("en-GB",   { hour: "2-digit", minute: "2-digit", timeZone: BST });
+  const tz = end.toLocaleTimeString("en-GB", { timeZoneName: "short", timeZone: BST }).split(" ").pop() ?? "BST";
+  if (startDay === endDay) return `${startDay}, ${startTime} – ${endTime} ${tz}`;
+  return `${startDay} ${startTime} – ${endDay} ${endTime} ${tz}`;
+}
+
 export function formatTime(secs: number): string {
   if (secs < 3600) {
     const m = Math.floor(secs / 60);
