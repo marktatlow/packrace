@@ -16,7 +16,7 @@ import { prisma } from "./prisma";
 const STRAVA_API = "https://www.strava.com/api/v3";
 const RUN_TYPES = ["Run", "TrailRun", "VirtualRun"];
 const VALID_DISTANCES = [400, 805, 1000, 1609, 3219, 5000, 10000];
-const INITIAL_LOOKBACK_DAYS = 180;
+const INITIAL_LOOKBACK_DAYS = 60;
 
 // ── VDOT maths ────────────────────────────────────────────────────────────────
 

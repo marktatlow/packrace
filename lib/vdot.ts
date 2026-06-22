@@ -54,7 +54,7 @@ async function fetchWithRetry(url: string, accessToken: string, retries = 3): Pr
 }
 
 export async function fetchBestEfforts(accessToken: string): Promise<BestEffortsByDistance> {
-  const since = Math.floor((Date.now() - 180 * 24 * 60 * 60 * 1000) / 1000);
+  const since = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
   const fastest = new Map<number, number>();
 
   let page = 1;
@@ -125,7 +125,7 @@ export async function computePersonalBestFromStreams(
   accessToken: string,
   targetMeters: number
 ): Promise<number | null> {
-  const since = Math.floor((Date.now() - 180 * 24 * 60 * 60 * 1000) / 1000);
+  const since = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
   let best: number | null = null;
 
   let page = 1;
