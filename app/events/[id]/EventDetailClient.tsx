@@ -311,7 +311,7 @@ export default function EventDetailClient({
             <Link href="/events" className="inline-flex items-center gap-1.5 text-white/65 text-xs font-black uppercase tracking-wider hover:text-white transition-colors">
               ← Races
             </Link>
-            <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-6 w-auto opacity-80" />
+            <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-6 w-auto opacity-80" />
           </div>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -716,8 +716,14 @@ export default function EventDetailClient({
         {/* ══ BRANDED FOOTER ══ */}
         <div className="pt-4 pb-2 flex flex-col items-center gap-2 opacity-50">
           <img src="/raceparty-icon.png" alt="" className="w-8 h-8" />
-          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-5 w-auto" />
-          <p className="text-white/40 text-[10px] font-black tracking-widest uppercase">Predict · Run · Get roasted</p>
+          <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-5 w-auto" />
+          <p className="text-[10px] font-black tracking-widest uppercase">
+            <span className="text-[#FF2D94]">Predict</span>
+            <span className="text-white/30"> · </span>
+            <span className="text-[#00B7FF]">Race</span>
+            <span className="text-white/30"> · </span>
+            <span className="text-[#39FF72]">Get Roasted</span>
+          </p>
         </div>
 
       </div>

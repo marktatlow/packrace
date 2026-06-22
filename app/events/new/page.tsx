@@ -46,7 +46,7 @@ export default function NewEventPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <Link href="/events" className="text-white/50 text-xl hover:text-white transition-colors">←</Link>
-        <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-7 w-auto" />
+        <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-7 w-auto" />
         <div className="w-7" />
       </div>
       <h1 className="text-2xl font-black text-[#F4F4F7] mb-6">New Race</h1>

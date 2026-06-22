@@ -13,7 +13,7 @@ export default async function JoinPage({ params }: { params: Promise<{ inviteCod
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#FF2D94]/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative max-w-sm w-full space-y-6">
           <img src="/raceparty-icon.png" alt="RaceParty" className="w-28 h-28 mx-auto drop-shadow-[0_0_20px_rgba(255,45,148,0.5)]" />
-          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-12 w-auto mx-auto" />
+          <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-12 w-auto mx-auto" />
           <div>
             <h1 className="text-2xl font-black text-[#F4F4F7]">You&apos;re invited!</h1>
             <p className="text-white/60 mt-2">Connect with Strava to join this race.</p>

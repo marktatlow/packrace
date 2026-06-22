@@ -19,7 +19,7 @@ export default async function ProfilePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <Link href="/events" className="text-white/50 text-xl hover:text-white transition-colors">←</Link>
-        <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-7 w-auto" />
+        <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-7 w-auto" />
         <div className="w-7" />
       </div>
 

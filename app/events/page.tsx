@@ -137,8 +137,14 @@ export default function EventsPage() {
         {/* Centred logo lockup */}
         <div className="flex flex-col items-center pt-4 pb-8 px-5 relative">
           <img src="/raceparty-icon.png" alt="" className="w-16 h-16 mb-3" />
-          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-14 w-auto" />
-          <p className="text-white/50 text-xs mt-2 font-black tracking-widest uppercase">Predict. Run. Get roasted.</p>
+          <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-14 w-auto" />
+          <p className="text-xs mt-2 font-black tracking-widest uppercase">
+            <span className="text-[#FF2D94]">Predict</span>
+            <span className="text-white/30"> · </span>
+            <span className="text-[#00B7FF]">Race</span>
+            <span className="text-white/30"> · </span>
+            <span className="text-[#39FF72]">Get Roasted</span>
+          </p>
         </div>
       </div>
 

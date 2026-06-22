@@ -18,12 +18,16 @@ export default async function HomePage() {
         {/* Logo / Brand */}
         <div className="space-y-3">
           <img src="/raceparty-icon.png" alt="RaceParty" className="w-32 h-32 mx-auto drop-shadow-[0_0_24px_rgba(255,45,148,0.5)]" />
-          <img src="/raceparty-wordmark.png" alt="RaceParty" className="h-16 w-auto mx-auto" />
+          <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-16 w-auto mx-auto" />
           <p className="text-[#F4F4F7]/60 text-base leading-relaxed">
             Predict your finish time, race with friends,<br />see who knows themselves best.
           </p>
-          <p className="text-xs font-black uppercase tracking-widest text-white/30">
-            Predict · Run · Get roasted
+          <p className="text-xs font-black uppercase tracking-widest">
+            <span className="text-[#FF2D94]">Predict</span>
+            <span className="text-white/30"> · </span>
+            <span className="text-[#00B7FF]">Race</span>
+            <span className="text-white/30"> · </span>
+            <span className="text-[#39FF72]">Get Roasted</span>
           </p>
         </div>
 
