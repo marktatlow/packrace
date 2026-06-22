@@ -621,9 +621,12 @@ export default function EventDetailClient({
         {/* ══ SECTION 3 — TIPS ══ */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">AI Tipster</p>
-              <p className="text-xl font-black text-gray-900">🎙️ Tips</p>
+            <div className="flex items-center gap-3">
+              <img src="/tips-avatar.jpeg" alt="Tips" className="w-12 h-12 rounded-full object-cover border-2 border-[#F2591E] shadow-sm" />
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">AI Tipster</p>
+                <p className="text-xl font-black text-gray-900">Tips</p>
+              </div>
             </div>
             {commentary && (
               <button onClick={copyRaceCard}

@@ -108,7 +108,10 @@ export default function RunnerCard({
           {verdict && (windowEnded && verdict.postRaceVerdict ? (
             <div className="mt-3 space-y-2">
               <div className="bg-[#FFF8F5] border border-[#FFF1EA] rounded-xl p-3">
-                <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-1.5">🎩 Tips' Post-Race Verdict</p>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#F2591E]" />
+                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider">Tips' Post-Race Verdict</p>
+                </div>
                 <p className="text-sm text-[#1A2233] italic leading-relaxed">{verdict.postRaceVerdict}</p>
               </div>
               {verdict.tip && (
@@ -120,7 +123,10 @@ export default function RunnerCard({
             </div>
           ) : (
             <div className="mt-3 bg-[#FFF8F5] border border-[#FFF1EA] rounded-xl p-3">
-              <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-1.5">🎩 Tips' Verdict</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#F2591E]" />
+                <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider">Tips' Verdict</p>
+              </div>
               <p className="text-sm text-[#1A2233] italic leading-relaxed">{verdict.tip}</p>
             </div>
           ))}
