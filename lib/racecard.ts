@@ -29,7 +29,7 @@ export async function generateRaceCard(eventId: string): Promise<void> {
     },
   });
 
-  if (!event || event.participants.length < 2) return;
+  if (!event || event.participants.length < 1) return;
 
   const now = new Date();
   const windowEnded = now > event.windowEnd;
