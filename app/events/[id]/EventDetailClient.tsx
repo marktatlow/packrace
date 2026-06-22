@@ -707,10 +707,6 @@ export default function EventDetailClient({
             </div>
           </div>
 
-          <button onClick={refreshEstimates} disabled={refreshingEstimates}
-            className="w-full bg-[#13151C] border border-white/10 text-white/60 font-semibold py-2.5 rounded-xl text-xs disabled:opacity-40 hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors shadow-sm">
-            {refreshingEstimates ? "Refreshing Strava estimates…" : "⚡ Refresh Strava Estimates"}
-          </button>
         </section>
 
         {/* ══ BRANDED FOOTER ══ */}
