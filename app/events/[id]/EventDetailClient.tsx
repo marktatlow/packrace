@@ -552,53 +552,44 @@ export default function EventDetailClient({
 
           {commentary ? (
             <div className="space-y-3">
-              <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
-                <p className="text-gray-600 text-sm leading-relaxed italic">{commentary.intro}</p>
-                <ReactionBar
-                  reactions={reactions[event.id] ?? {}}
-                  onReact={(emoji) => handleReact("tipster", event.id, emoji)}
-                />
-              </div>
-              {commentary.tips.map((tip, idx) => {
-                const style = tip.label ? labelStyles[tip.label] : null;
-                const lightStyles: Record<string, { bg: string; text: string }> = {
-                  SHARP:        { bg: "bg-green-50",  text: "text-green-600" },
-                  "DARK HORSE": { bg: "bg-purple-50", text: "text-purple-600" },
-                  SANDBAGGING:  { bg: "bg-amber-50",  text: "text-amber-600" },
-                  PAP:          { bg: "bg-red-50",    text: "text-red-600" },
-                };
-                const ls = tip.label ? lightStyles[tip.label] : null;
-                return (
-                  <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-black text-gray-900">{tip.name}</span>
-                      {ls && tip.label && style && (
-                        <span className={`text-xs font-black px-2 py-0.5 rounded-full ${ls.bg} ${ls.text}`}>
-                          {style.emoji} {tip.label}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-gray-600 text-sm leading-relaxed">{tip.tip}</p>
-                  </div>
-                );
-              })}
-              {/* Post-race overall summary */}
-              {windowEnded && commentary.postRaceIntro && (
+              {/* Pre-event: intro overview only */}
+              {!windowEnded && (
+                <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-4">
+                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-2">🎩 Pre-Race Overview</p>
+                  <p className="text-gray-600 text-sm leading-relaxed italic">{commentary.intro}</p>
+                  <ReactionBar
+                    reactions={reactions[event.id] ?? {}}
+                    onReact={(emoji) => handleReact("tipster", event.id, emoji)}
+                  />
+                </div>
+              )}
+
+              {/* Post-event: closing memo only */}
+              {windowEnded && (
                 <div className="bg-[#1A2233] rounded-2xl p-4">
-                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-2">🎩 Tips' Closing Memo</p>
-                  <p className="text-white/90 text-sm leading-relaxed italic">{commentary.postRaceIntro}</p>
+                  <p className="text-[10px] font-black text-[#F2591E] uppercase tracking-wider mb-2">🎩 Post-Race Verdict</p>
+                  <p className="text-white/90 text-sm leading-relaxed italic">
+                    {commentary.postRaceIntro ?? commentary.intro}
+                  </p>
+                  <ReactionBar
+                    reactions={reactions[event.id] ?? {}}
+                    onReact={(emoji) => handleReact("tipster", event.id, emoji)}
+                  />
                 </div>
               )}
 
               <p className="text-center text-xs text-gray-300">
                 Generated {new Date(raceCard!.generatedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                {windowEnded && !commentary.postRaceIntro && (
+                  <span className="block text-[#F2591E] mt-1">Regenerate for post-race verdicts ↑</span>
+                )}
               </p>
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-[#ECE7DF] p-8 text-center">
               <p className="text-4xl mb-2">🎙️</p>
-              <p className="text-gray-400 text-sm font-semibold">No tips yet.</p>
-              {joined && <p className="text-gray-300 text-xs mt-1">Tap Generate — Tips will size up every runner.{windowEnded ? " Results are in — post-race verdicts included." : ""}</p>}
+              <p className="text-gray-400 text-sm font-semibold">{windowEnded ? "No post-race verdict yet." : "No pre-race tips yet."}</p>
+              {joined && <p className="text-gray-300 text-xs mt-1">{windowEnded ? "Tap Regenerate — Tips will deliver the post-race verdict." : "Tap Generate — Tips will size up every runner."}</p>}
             </div>
           )}
         </section>
