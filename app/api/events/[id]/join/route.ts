@@ -3,6 +3,7 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
 import { syncAndComputeVdot, computeVdotFromDb } from "@/lib/bestEfforts";
+import { generateRaceCard } from "@/lib/racecard";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromRequest(req);
@@ -52,6 +53,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           where: { id: participant.id },
           data: { vdotPredictedSecs },
         });
+      }
+
+      // Regenerate Tips so the new runner is included (need ≥2 participants with predictions)
+      const predictedCount = await prisma.eventParticipant.count({
+        where: { eventId: event.id, predictedTimeSecs: { not: null } },
+      });
+      if (predictedCount >= 2) {
+        await generateRaceCard(event.id).catch(() => { /* non-fatal */ });
       }
     } catch { /* non-fatal */ }
   })();

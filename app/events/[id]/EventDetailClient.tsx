@@ -544,19 +544,11 @@ export default function EventDetailClient({
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">AI Tipster</p>
               <p className="text-xl font-black text-gray-900">🎙️ Tips</p>
             </div>
-            {joined && (
-              <div className="flex gap-2">
-                <button onClick={generateRaceCard} disabled={generatingCard}
-                  className="bg-[#FF6B35] text-white text-xs font-black px-3 py-2 rounded-xl disabled:opacity-50 whitespace-nowrap shadow-sm">
-                  {generatingCard ? "Generating…" : commentary ? "Regenerate" : "Generate"}
-                </button>
-                {commentary && (
-                  <button onClick={copyRaceCard}
-                    className="bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-xl hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors whitespace-nowrap shadow-sm">
-                    {cardCopied ? "Copied!" : "Share"}
-                  </button>
-                )}
-              </div>
+            {commentary && (
+              <button onClick={copyRaceCard}
+                className="bg-white border border-[#ECE7DF] text-gray-600 text-xs font-semibold px-3 py-2 rounded-xl hover:border-[#F2591E] hover:text-[#F2591E] transition-colors whitespace-nowrap shadow-sm">
+                {cardCopied ? "Copied!" : "Share"}
+              </button>
             )}
           </div>
 
