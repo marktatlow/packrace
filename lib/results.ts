@@ -30,6 +30,85 @@ function fastestSegment(
   return bestSecs;
 }
 
+/**
+ * Process a single known Strava activity for a user.
+ * Called instantly by the webhook handler — much cheaper than a full scan.
+ * Finds all active event windows the user is in and updates their result.
+ */
+export async function processActivityForUser(
+  stravaAthleteId: string,
+  stravaActivityId: number
+): Promise<void> {
+  // Find our user by Strava athlete ID
+  const user = await prisma.user.findUnique({ where: { stravaId: stravaAthleteId } });
+  if (!user) return;
+
+  const now = new Date();
+
+  // Find active event windows this user is participating in
+  const participants = await prisma.eventParticipant.findMany({
+    where: {
+      userId: user.id,
+      event: { windowStart: { lte: now }, windowEnd: { gte: now } },
+    },
+    include: { event: true },
+  });
+
+  if (participants.length === 0) return;
+
+  const accessToken = await refreshTokenIfNeeded(user.id);
+
+  // Fetch the specific activity from Strava (1 API call)
+  const res = await fetch(`${STRAVA_API}/activities/${stravaActivityId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return;
+  const activity = await res.json();
+
+  if (!RUN_TYPES.includes(activity.sport_type ?? activity.type)) return;
+
+  const activityDate = new Date(activity.start_date);
+
+  for (const participant of participants) {
+    const targetMeters = participant.event.distanceKm * 1000;
+
+    // Check activity is within this event's window
+    if (activityDate < participant.event.windowStart || activityDate > participant.event.windowEnd) continue;
+    // Check distance is close enough
+    if (activity.distance < targetMeters * 0.96) continue;
+
+    let bestSecs: number | null = null;
+    let bestActivityId: bigint | null = BigInt(stravaActivityId);
+
+    if (activity.distance <= targetMeters * 1.04) {
+      // Within ±4% — use moving time directly
+      bestSecs = activity.moving_time;
+    } else {
+      // Longer run — fetch streams and find fastest segment
+      const streamsRes = await fetch(
+        `${STRAVA_API}/activities/${stravaActivityId}/streams?keys=distance,time&key_by_type=true`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const streams = await streamsRes.json();
+      if (streams?.distance?.data && streams?.time?.data) {
+        bestSecs = fastestSegment(streams.distance.data, streams.time.data, targetMeters);
+      }
+    }
+
+    if (bestSecs !== null) {
+      await prisma.eventParticipant.update({
+        where: { id: participant.id },
+        data: {
+          actualTimeSecs: bestSecs,
+          stravaActivityId: bestActivityId ?? undefined,
+          resultFetchedAt: new Date(),
+        },
+      });
+      console.log(`Webhook: updated result for ${user.firstName} in event ${participant.event.name} — ${bestSecs}s`);
+    }
+  }
+}
+
 export async function fetchResultsForEvent(eventId: string, isLive = false) {
   const event = await prisma.event.findUnique({
     where: { id: eventId },

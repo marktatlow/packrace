@@ -157,7 +157,7 @@ export default function EventDetailClient({
     }
 
     fetchLive();
-    const interval = setInterval(fetchLive, 5 * 60 * 1000);
+    const interval = setInterval(fetchLive, 30 * 60 * 1000); // 30 min backup — webhook handles instant updates
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
