@@ -106,6 +106,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
   // Build markets from real Tips data
   const buildMarket = () => {
     return participants
+      .filter((p) => p.vdotPredictedSecs && p.predictedTimeSecs)
       .map((p, idx) => {
         const tip = tips.find((t) => t.name === p.firstName);
         const trap = (idx % 6) + 1;

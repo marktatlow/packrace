@@ -282,14 +282,22 @@ function decimalToFractional(dec: number): string {
   if (dec <= 3.25) return "2/1";
   if (dec <= 3.75) return "11/4";
   if (dec <= 4.5)  return "3/1";
-  if (dec <= 5.5)  return "4/1";
-  if (dec <= 6.5)  return "5/1";
-  if (dec <= 7.5)  return "6/1";
-  if (dec <= 9.0)  return "7/1";
-  if (dec <= 11.0) return "9/1";
-  if (dec <= 14.0) return "12/1";
-  if (dec <= 18.0) return "16/1";
-  if (dec <= 25.0) return "20/1";
+  if (dec <= 5.25) return "4/1";
+  if (dec <= 6.0)  return "9/2";
+  if (dec <= 6.75) return "5/1";
+  if (dec <= 7.5)  return "11/2";
+  if (dec <= 8.25) return "6/1";
+  if (dec <= 8.75) return "13/2";
+  if (dec <= 9.25) return "7/1";
+  if (dec <= 9.75) return "15/2";
+  if (dec <= 10.5) return "8/1";
+  if (dec <= 11.5) return "9/1";
+  if (dec <= 13.0) return "10/1";
+  if (dec <= 15.0) return "12/1";
+  if (dec <= 18.0) return "14/1";
+  if (dec <= 22.0) return "16/1";
+  if (dec <= 28.0) return "20/1";
+  if (dec <= 36.0) return "25/1";
   return "33/1";
 }
 
@@ -417,11 +425,15 @@ export async function updateAllOdds(eventId: string): Promise<void> {
   });
   if (participants.length < 2) return;
 
-  const participantData = participants.map((p) => ({
-    firstName: p.user.firstName,
-    predictedTimeSecs: p.predictedTimeSecs,
-    vdotPredictedSecs: p.vdotPredictedSecs,
-  }));
+  // Only include runners with both a prediction AND a VDOT estimate
+  const participantData = participants
+    .filter((p) => p.predictedTimeSecs && p.vdotPredictedSecs)
+    .map((p) => ({
+      firstName: p.user.firstName,
+      predictedTimeSecs: p.predictedTimeSecs,
+      vdotPredictedSecs: p.vdotPredictedSecs,
+    }));
+  if (participantData.length < 2) return;
 
   // All three markets computed deterministically — accurate, instant, no AI
   const fastestMap  = computeFastestOdds(participantData);
