@@ -301,43 +301,43 @@ function decimalToFractional(dec: number): string {
   return "33/1";
 }
 
+const SANDBAG_NOTES = [
+  "Hiding serious pace. Banker.",
+  "Suspiciously conservative prediction.",
+  "That gap is very telling.",
+  "Slight padding. Noted.",
+  "Honest. Suspiciously honest.",
+  "Backing themselves a little hard.",
+  "Form doesn't support the prediction.",
+  "Firmly in denial here.",
+  "Confidence outpacing the evidence.",
+  "Pure optimism. Nothing more.",
+];
+
 function computeSandbagOdds(
   participants: { firstName: string; predictedTimeSecs: number | null; vdotPredictedSecs: number | null }[]
 ): Map<string, { odds: string; note: string }> {
-  // Raw gap: positive = predicting slower than estimate (sandbagging)
-  //          negative = predicting faster than estimate (overconfident)
   const rawGaps = participants.map((p) => ({
     name: p.firstName,
     raw: p.vdotPredictedSecs && p.predictedTimeSecs
       ? p.predictedTimeSecs - p.vdotPredictedSecs
       : 0,
-  }));
+  })).sort((a, b) => b.raw - a.raw); // most sandbagging first
 
-  // Shift so the most overconfident becomes 0 weight, most conservative gets full weight
-  // This works whether everyone is sandbagging, everyone is overconfident, or mixed
   const minRaw = Math.min(...rawGaps.map((g) => g.raw));
-  const gaps = rawGaps.map((g) => ({ name: g.name, raw: g.raw, weight: g.raw - minRaw }));
+  const gaps = rawGaps.map((g) => ({ ...g, weight: g.raw - minRaw }));
   const totalWeight = gaps.reduce((s, g) => s + g.weight, 0);
   const OVERROUND = 1.15;
 
-  return new Map(gaps.map((g) => {
+  return new Map(gaps.map((g, rank) => {
     let dec: number;
     if (totalWeight === 0) {
-      // All perfectly calibrated — equal market
       dec = 1 + (participants.length - 1) * OVERROUND;
     } else {
       const implied = (g.weight / totalWeight) / OVERROUND;
       dec = implied > 0 ? 1 / implied : 34;
     }
-
-    const note = g.raw > 120  ? "Hiding serious pace. Banker."
-      : g.raw > 60   ? "Big gap. Very suspicious."
-      : g.raw > 20   ? "Slight padding. Worth noting."
-      : g.raw > -20  ? "Honest. Almost too honest."
-      : g.raw > -60  ? "Thinks more than data suggests."
-      : g.raw > -120 ? "Firmly in denial here."
-      :                "Pure optimism. Nothing more.";
-
+    const note = SANDBAG_NOTES[rank] ?? SANDBAG_NOTES[SANDBAG_NOTES.length - 1];
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
 }
@@ -345,23 +345,35 @@ function computeSandbagOdds(
 // ─── Beat estimate odds helper ───────────────────────────────────────────────
 // Runners predicting slower than estimate are MOST likely to beat it (sandbagging).
 // Runners predicting faster than estimate are LEAST likely to beat it (overconfident).
+const BEAT_NOTES = [
+  "Prediction a deliberate lowball.",
+  "Should beat this easily.",
+  "Likely to come good.",
+  "Honest but beatable target.",
+  "Coin toss. Could go either way.",
+  "Prediction beyond current form.",
+  "Ambitious. Very ambitious indeed.",
+  "Data says no. Firmly.",
+  "Not a chance. Move on.",
+  "Fiction, not a prediction.",
+];
+
 function computeBeatEstimateOdds(
   participants: { firstName: string; vdotPredictedSecs: number | null; predictedTimeSecs: number | null }[]
 ): Map<string, { odds: string; note: string }> {
-  // gap = predicted - estimate: positive = sandbagging (likely to beat estimate)
-  // Shift by min so all weights are non-negative, same approach as sandbagger
   const rawGaps = participants.map((p) => ({
     name: p.firstName,
     raw: p.vdotPredictedSecs && p.predictedTimeSecs
       ? p.predictedTimeSecs - p.vdotPredictedSecs
       : 0,
-  }));
+  })).sort((a, b) => b.raw - a.raw); // most sandbagging first = shortest odds first
+
   const minRaw = Math.min(...rawGaps.map((g) => g.raw));
-  const gaps = rawGaps.map((g) => ({ name: g.name, raw: g.raw, weight: g.raw - minRaw }));
+  const gaps = rawGaps.map((g) => ({ ...g, weight: g.raw - minRaw }));
   const totalWeight = gaps.reduce((s, g) => s + g.weight, 0);
   const OVERROUND = 1.15;
 
-  return new Map(gaps.map((g) => {
+  return new Map(gaps.map((g, rank) => {
     let dec: number;
     if (totalWeight === 0) {
       dec = 1 + (participants.length - 1) * OVERROUND;
@@ -369,12 +381,7 @@ function computeBeatEstimateOdds(
       const implied = (g.weight / totalWeight) / OVERROUND;
       dec = implied > 0 ? 1 / implied : 34;
     }
-    const note = g.raw > 60  ? "Hiding serious pace. Short."
-      : g.raw > 20  ? "Should beat this comfortably."
-      : g.raw > -20 ? "Well calibrated. Coin toss."
-      : g.raw > -60 ? "Prediction outpaces the form."
-      : g.raw > -120 ? "Very optimistic prediction here."
-      :                "Pure fantasy. Data disagrees.";
+    const note = BEAT_NOTES[rank] ?? BEAT_NOTES[BEAT_NOTES.length - 1];
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
 }
@@ -382,30 +389,34 @@ function computeBeatEstimateOdds(
 // ─── Fastest runner odds helper ──────────────────────────────────────────────
 // Computed from VDOT estimates. Faster estimate = shorter odds.
 // Implied probability proportional to 1/estimateSecs (speed, not time).
+const FASTEST_NOTES = [
+  "The benchmark. Clear favourite.",
+  "Danger if favourite stumbles.",
+  "Serious pace. Needs luck.",
+  "Dark horse. Could sneak.",
+  "Outsider with a point.",
+  "Up against it here.",
+  "Needs the stars to align.",
+  "Miracle territory, frankly.",
+  "Long shot. Very long.",
+  "Not in this company.",
+];
+
 function computeFastestOdds(
   participants: { firstName: string; vdotPredictedSecs: number | null; predictedTimeSecs: number | null }[]
 ): Map<string, { odds: string; note: string }> {
-  // Use VDOT estimate; fall back to user prediction if no estimate
   const speeds = participants.map((p) => ({
     name: p.firstName,
     secs: p.vdotPredictedSecs ?? p.predictedTimeSecs ?? 9999,
-  }));
+  })).sort((a, b) => a.secs - b.secs); // sort fastest first
 
   const totalInvSpeed = speeds.reduce((s, r) => s + 1 / r.secs, 0);
   const OVERROUND = 1.15;
 
-  return new Map(speeds.map((r) => {
+  return new Map(speeds.map((r, rank) => {
     const implied = (1 / r.secs / totalInvSpeed) / OVERROUND;
     const dec = 1 / implied;
-
-    // Rank among field for note
-    const rank = speeds.slice().sort((a, b) => a.secs - b.secs).findIndex((s) => s.name === r.name) + 1;
-    const note = rank === 1 ? "The benchmark. Favourite."
-      : rank === 2 ? "Danger if favourite stumbles."
-      : rank === 3 ? "Pace there. Needs luck."
-      : rank < speeds.length - 1 ? "Could sneak a surprise."
-      : "Needs a miracle, frankly.";
-
+    const note = FASTEST_NOTES[rank] ?? FASTEST_NOTES[FASTEST_NOTES.length - 1];
     return [r.name, { odds: decimalToFractional(dec), note }];
   }));
 }
