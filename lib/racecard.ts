@@ -296,31 +296,39 @@ function decimalToFractional(dec: number): string {
 function computeSandbagOdds(
   participants: { firstName: string; predictedTimeSecs: number | null; vdotPredictedSecs: number | null }[]
 ): Map<string, { odds: string; note: string }> {
-  const gaps = participants.map((p) => ({
+  // Raw gap: positive = predicting slower than estimate (sandbagging)
+  //          negative = predicting faster than estimate (overconfident)
+  const rawGaps = participants.map((p) => ({
     name: p.firstName,
-    gap: p.vdotPredictedSecs && p.predictedTimeSecs
-      ? Math.max(0, p.predictedTimeSecs - p.vdotPredictedSecs)
+    raw: p.vdotPredictedSecs && p.predictedTimeSecs
+      ? p.predictedTimeSecs - p.vdotPredictedSecs
       : 0,
   }));
 
-  const totalGap = gaps.reduce((s, g) => s + g.gap, 0);
-  const OVERROUND = 1.15; // 115% book
+  // Shift so the most overconfident becomes 0 weight, most conservative gets full weight
+  // This works whether everyone is sandbagging, everyone is overconfident, or mixed
+  const minRaw = Math.min(...rawGaps.map((g) => g.raw));
+  const gaps = rawGaps.map((g) => ({ name: g.name, raw: g.raw, weight: g.raw - minRaw }));
+  const totalWeight = gaps.reduce((s, g) => s + g.weight, 0);
+  const OVERROUND = 1.15;
 
   return new Map(gaps.map((g) => {
     let dec: number;
-    if (totalGap === 0 || g.gap === 0) {
-      dec = 34; // no sandbagging signal → long odds
+    if (totalWeight === 0) {
+      // All perfectly calibrated — equal market
+      dec = 1 + (participants.length - 1) * OVERROUND;
     } else {
-      // Implied prob = gap / totalGap, then apply overround
-      const implied = (g.gap / totalGap) / OVERROUND;
-      dec = 1 / implied;
+      const implied = (g.weight / totalWeight) / OVERROUND;
+      dec = implied > 0 ? 1 / implied : 34;
     }
 
-    const note = g.gap > 120 ? "Massive gap. Banker."
-      : g.gap > 60  ? "Significant pace hiding."
-      : g.gap > 30  ? "Modest sandbagging."
-      : g.gap > 10  ? "Slight padding."
-      : "No sandbagging detected.";
+    const note = g.raw > 120  ? "Massive hidden reserves. Banker."
+      : g.raw > 60   ? "Significant pace sandbagged."
+      : g.raw > 20   ? "Modest padding."
+      : g.raw > -20  ? "Suspiciously honest."
+      : g.raw > -60  ? "Slightly ambitious."
+      : g.raw > -120 ? "Optimistic. Very."
+      :                "Living in a fantasy.";
 
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
