@@ -50,9 +50,9 @@ export async function updateRunnerTip(eventId: string, userId: string): Promise<
   const name = p.user.firstName;
   const hasResult = !!p.actualTimeSecs;
 
-  const predTime = formatTime(p.predictedTimeSecs);
+  const predTime = formatTime(p.predictedTimeSecs!);
   const estTime = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : null;
-  const gap = p.vdotPredictedSecs ? p.predictedTimeSecs - p.vdotPredictedSecs : null;
+  const gap = p.vdotPredictedSecs ? p.predictedTimeSecs! - p.vdotPredictedSecs : null;
   const gapNote = gap !== null
     ? gap > 15 ? `sandbagging — predicted ${gap}s slower than my estimate`
       : gap < -15 ? `overconfident — predicted ${Math.abs(gap)}s faster than my estimate`
@@ -69,9 +69,9 @@ export async function updateRunnerTip(eventId: string, userId: string): Promise<
         ? `beat my estimate by ${p.vdotPredictedSecs - p.actualTimeSecs!}s`
         : `missed my estimate by ${p.actualTimeSecs! - p.vdotPredictedSecs}s`
       : "";
-    const vsPredNote = p.actualTimeSecs! < p.predictedTimeSecs
-      ? `${p.predictedTimeSecs - p.actualTimeSecs!}s faster than predicted`
-      : `${p.actualTimeSecs! - p.predictedTimeSecs}s slower than predicted`;
+    const vsPredNote = p.actualTimeSecs! < p.predictedTimeSecs!
+      ? `${p.predictedTimeSecs! - p.actualTimeSecs!}s faster than predicted`
+      : `${p.actualTimeSecs! - p.predictedTimeSecs!}s slower than predicted`;
 
     prompt = `${VOICE}
 
