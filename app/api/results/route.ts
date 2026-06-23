@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { fetchResultsForEvent } from "@/lib/results";
 import { prisma } from "@/lib/prisma";
-import { generateRaceCard } from "@/lib/racecard";
+import { updateRaceIntro } from "@/lib/racecard";
 
 export async function POST(req: NextRequest) {
   const session = await getSessionFromRequest(req);
@@ -25,10 +25,10 @@ export async function POST(req: NextRequest) {
 
   await fetchResultsForEvent(eventId, isLive);
 
-  // If the window just closed, fire off a post-race Tips card in the background
+  // If the window just closed, generate the post-race closing summary
   if (windowJustClosed) {
-    void generateRaceCard(eventId).catch((err) =>
-      console.error("Post-race Tips generation failed:", err)
+    void updateRaceIntro(eventId, "post-race").catch((err) =>
+      console.error("Post-race summary failed:", err)
     );
   }
 

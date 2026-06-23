@@ -3,7 +3,7 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
 import { syncAndComputeVdot, computeVdotFromDb } from "@/lib/bestEfforts";
-import { generateRaceCard } from "@/lib/racecard";
+import { updateRunnerTip, updateRaceIntro } from "@/lib/racecard";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromRequest(req);
@@ -24,19 +24,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: { waiverAcceptedAt: new Date() },
   });
 
-  const participant = await prisma.eventParticipant.upsert({
+  await prisma.eventParticipant.upsert({
     where: { eventId_userId: { eventId: event.id, userId: session.userId } },
     create: { eventId: event.id, userId: session.userId },
     update: {},
   });
 
-  // Run VDOT sync and Tips regeneration in background — don't block join response
+  // Background: VDOT → runner tip → race intro (in that order, each non-fatal)
   (async () => {
-    // Step 1: try to compute VDOT estimate — failure must not block Tips
+    // 1. Compute VDOT estimate
     try {
       const targetMeters = event.distanceKm * 1000;
       const existing = await prisma.bestEffort.count({ where: { userId: session.userId } });
-
       let vdotPredictedSecs: number | null;
       if (existing > 0) {
         vdotPredictedSecs = await computeVdotFromDb(session.userId, targetMeters);
@@ -44,23 +43,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const accessToken = await refreshTokenIfNeeded(session.userId);
         vdotPredictedSecs = await syncAndComputeVdot(session.userId, accessToken, targetMeters);
       }
-
       if (vdotPredictedSecs) {
-        await prisma.eventParticipant.update({
-          where: { id: participant.id },
+        await prisma.eventParticipant.updateMany({
+          where: { eventId: event.id, userId: session.userId },
           data: { vdotPredictedSecs },
         });
       }
-    } catch {
-      // VDOT failed — non-fatal, continue to Tips regeneration
-    }
+    } catch { /* non-fatal */ }
 
-    // Step 2: always regenerate Tips, whether VDOT succeeded or not
-    try {
-      await generateRaceCard(event.id);
-    } catch {
-      // Tips failed — non-fatal
-    }
+    // 2. Generate this runner's individual tip (with VDOT if available)
+    await updateRunnerTip(event.id, session.userId).catch(() => {});
+
+    // 3. Update the race intro to include the new runner
+    await updateRaceIntro(event.id, "pre-race").catch(() => {});
   })();
 
   return NextResponse.json({ ok: true });

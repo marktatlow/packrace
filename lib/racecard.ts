@@ -17,7 +17,133 @@ export type RaceCardCommentary = {
   postRaceIntro?: string;
 };
 
-export async function generateRaceCard(eventId: string): Promise<void> {
+const VOICE = `You are "Tips" — a brutally perceptive race commentator: part elite running coach, part pub heckler, part disappointed PE teacher. Acerbic, intelligent, dry, cutting. Sarcasm encouraged. Zero fluff. Humour from insight. Safe for a group chat: spicy, not genuinely nasty. Max 35 words per runner, max 2 sentences. Always mention the runner's name.`;
+
+// ─── Load or initialise a race card from DB ──────────────────────────────────
+async function loadCard(eventId: string): Promise<RaceCardCommentary | null> {
+  const rc = await prisma.raceCard.findUnique({ where: { eventId } });
+  if (!rc) return null;
+  return JSON.parse(rc.commentary) as RaceCardCommentary;
+}
+
+async function saveCard(eventId: string, commentary: RaceCardCommentary): Promise<void> {
+  await prisma.raceCard.upsert({
+    where: { eventId },
+    create: { eventId, commentary: JSON.stringify(commentary) },
+    update: { commentary: JSON.stringify(commentary), generatedAt: new Date() },
+  });
+}
+
+// ─── UPDATE A SINGLE RUNNER'S TIP ────────────────────────────────────────────
+// Called: on join (after prediction + VDOT), on prediction save, on run completion
+export async function updateRunnerTip(eventId: string, userId: string): Promise<void> {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return;
+
+  const participant = await prisma.eventParticipant.findUnique({
+    where: { eventId_userId: { eventId, userId } },
+    include: { user: true },
+  });
+  if (!participant || !participant.predictedTimeSecs) return;
+
+  const p = participant;
+  const name = p.user.firstName;
+  const hasResult = !!p.actualTimeSecs;
+
+  const predTime = formatTime(p.predictedTimeSecs);
+  const estTime = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : null;
+  const gap = p.vdotPredictedSecs ? p.predictedTimeSecs - p.vdotPredictedSecs : null;
+  const gapNote = gap !== null
+    ? gap > 15 ? `sandbagging — predicted ${gap}s slower than my estimate`
+      : gap < -15 ? `overconfident — predicted ${Math.abs(gap)}s faster than my estimate`
+      : `well-calibrated against my estimate`
+    : "no estimate yet";
+
+  let prompt: string;
+
+  if (hasResult) {
+    // Post-race: generate verdict for this specific runner
+    const actualTime = formatTime(p.actualTimeSecs!);
+    const vsBeatNote = p.vdotPredictedSecs
+      ? p.actualTimeSecs! < p.vdotPredictedSecs
+        ? `beat my estimate by ${p.vdotPredictedSecs - p.actualTimeSecs!}s`
+        : `missed my estimate by ${p.actualTimeSecs! - p.vdotPredictedSecs}s`
+      : "";
+    const vsPredNote = p.actualTimeSecs! < p.predictedTimeSecs
+      ? `${p.predictedTimeSecs - p.actualTimeSecs!}s faster than predicted`
+      : `${p.actualTimeSecs! - p.predictedTimeSecs}s slower than predicted`;
+
+    prompt = `${VOICE}
+
+${name} has just finished the ${event.distanceKm}km event.
+- Predicted: ${predTime}
+- My estimate: ${estTime ?? "unknown"} (${gapNote})
+- Actual result: ${actualTime} (${vsPredNote}${vsBeatNote ? `, ${vsBeatNote}` : ""})
+
+Write ONE post-race verdict for ${name} only. Reference the specific numbers. Was my estimate right? Did they deliver on their prediction? Max 35 words, max 2 sentences.
+
+Respond ONLY with valid JSON:
+{ "postRaceVerdict": "verdict here" }`;
+  } else {
+    // Pre-race: generate or update tip for this runner
+    prompt = `${VOICE}
+
+${name} has entered the ${event.distanceKm}km event.
+- Their prediction: ${predTime}
+- My estimate: ${estTime ?? "unknown"}${estTime ? ` (${gapNote})` : ""}
+
+Write ONE pre-race comment for ${name} only. Compare their prediction to my estimate. Refer to your estimate as "my estimate" — never mention VDOT, algorithms, or Strava.
+
+Also assign a label:
+- SHARP: prediction closely matches my estimate
+- DARK HORSE: prediction slower than my estimate (hidden upside)
+- SANDBAGGING: prediction significantly slower than my estimate
+- PAP: prediction faster than my estimate (overconfident)
+- null: no estimate yet
+
+Respond ONLY with valid JSON:
+{ "label": "LABEL_OR_NULL", "tip": "pre-race comment here" }`;
+  }
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 200,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return;
+  const result = JSON.parse(jsonMatch[0]);
+
+  // Merge into existing card
+  const card = await loadCard(eventId) ?? { intro: "", tips: [] };
+  const existingIdx = card.tips.findIndex((t) => t.name === name);
+
+  if (hasResult) {
+    if (existingIdx >= 0) {
+      card.tips[existingIdx].postRaceVerdict = result.postRaceVerdict;
+    } else {
+      card.tips.push({ name, label: null, tip: "", postRaceVerdict: result.postRaceVerdict });
+    }
+  } else {
+    if (existingIdx >= 0) {
+      card.tips[existingIdx].label = result.label ?? null;
+      card.tips[existingIdx].tip = result.tip;
+    } else {
+      card.tips.push({ name, label: result.label ?? null, tip: result.tip });
+    }
+  }
+
+  await saveCard(eventId, card);
+}
+
+// ─── UPDATE THE RACE INTRO / SUMMARY ─────────────────────────────────────────
+// Called: on new join, daily cron, race-day at 1am BST, post-event
+export async function updateRaceIntro(
+  eventId: string,
+  mode: "pre-race" | "race-day" | "post-race"
+): Promise<void> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
@@ -26,142 +152,100 @@ export async function generateRaceCard(eventId: string): Promise<void> {
         where: { predictedTimeSecs: { not: null } },
         orderBy: { predictedTimeSecs: "asc" },
       },
-      raceCard: true,
     },
   });
-
   if (!event || event.participants.length < 1) return;
 
-  const now = new Date();
-  const windowEnded = now > event.windowEnd;
-  const hasResults = event.participants.some((p) => p.actualTimeSecs);
-  const isPostRace = windowEnded && hasResults;
-  const isMidRace = !windowEnded && hasResults;
-
-  // Build runner lines — include actual results for mid-race and post-race
-  const includeActuals = isPostRace || isMidRace;
   const runnerLines = event.participants.map((p) => {
-    const userEst = formatTime(p.predictedTimeSecs!);
-    const myEst = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
-    const gap = p.vdotPredictedSecs ? p.predictedTimeSecs! - p.vdotPredictedSecs : null;
-    const gapNote = gap !== null
-      ? gap > 15 ? ` (sandbagging — ${gap}s slower than my estimate)`
-        : gap < -15 ? ` (overconfident — ${Math.abs(gap)}s faster than my estimate)`
-        : ` (well-calibrated against my estimate)`
-      : "";
+    const predTime = formatTime(p.predictedTimeSecs!);
+    const estTime = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
     const actualLine = p.actualTimeSecs
-      ? ` | FINISHED: ${formatTime(p.actualTimeSecs)} (${
-          p.actualTimeSecs < p.predictedTimeSecs!
-            ? `${p.predictedTimeSecs! - p.actualTimeSecs}s faster than predicted`
-            : `${p.actualTimeSecs - p.predictedTimeSecs!}s slower than predicted`
-        }${p.vdotPredictedSecs
-          ? p.actualTimeSecs < p.vdotPredictedSecs
-            ? `, beat my estimate by ${p.vdotPredictedSecs - p.actualTimeSecs}s`
-            : `, missed my estimate by ${p.actualTimeSecs - p.vdotPredictedSecs}s`
-          : ""})`
-      : " | STILL RUNNING";
-    return `- ${p.user.firstName}: prediction ${userEst} | my estimate ${myEst}${gapNote}${includeActuals ? actualLine : ""}`;
+      ? ` | FINISHED: ${formatTime(p.actualTimeSecs)}`
+      : "";
+    return `- ${p.user.firstName}: predicted ${predTime} | my estimate ${estTime}${actualLine}`;
   }).join("\n");
 
-  const VOICE = `You are "Tips" — a brutally perceptive race commentator: part elite running coach, part pub heckler, part disappointed PE teacher. Acerbic, intelligent, dry, cutting. Sarcasm encouraged. Zero fluff. Humour from insight. Safe for a group chat: spicy, not genuinely nasty. Max 35 words per runner, max 2 sentences. Always mention the runner's name.`;
+  let prompt: string;
 
-  // ── PRE-RACE ─────────────────────────────────────────────────────────────
-  const preRacePrompt = `${VOICE}
-
-Pre-race analysis for a ${event.distanceKm}km run on ${new Date(event.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
-
-Runners, predictions, and my estimate:
-${runnerLines}
-
-Write one cutting pre-race comment per runner. Refer to your estimate as "my estimate" — never mention VDOT, algorithms, or Strava.
-Assign each runner a label:
-- SHARP: prediction closely matches my estimate
-- DARK HORSE: prediction slower than my estimate (hidden upside)
-- SANDBAGGING: prediction significantly slower than my estimate
-- PAP: prediction faster than my estimate (overconfident)
-
-Also write a 2-sentence savage intro setting the scene.
-
-Examples:
-James — Predicting 22:30 off a 21:40 PB? That is not humility. That is insurance fraud with a Garmin.
-Dave — Ambitious. Not impossible. But your pacing strategy has historically resembled a dog escaping a bath.
-
-Respond ONLY with valid JSON:
-{
-  "intro": "2 sentence savage intro",
-  "tips": [
-    { "name": "FirstName", "label": "LABEL", "tip": "One cutting pre-race comment." }
-  ]
-}`;
-
-  // ── MID-RACE (some runners finished, window still open) ──────────────────
-  const finishedNames = event.participants
-    .filter((p) => p.actualTimeSecs)
-    .map((p) => p.user.firstName)
-    .join(", ");
-
-  const midRacePrompt = `${VOICE}
-
-The ${event.distanceKm}km event is still live — some runners have finished, others haven't yet.
-
-Current standings:
-${runnerLines}
-
-For runners marked FINISHED: write a short post-race verdict (max 35 words). Reference their actual time vs prediction vs my estimate. Was I right?
-For runners marked STILL RUNNING: keep their original pre-race tip — just include it unchanged.
-
-Only generate postRaceVerdict for: ${finishedNames}
-
-Respond ONLY with valid JSON — include ALL runners in the tips array:
-{
-  "intro": "1 sentence scene-setter (race still live)",
-  "tips": [
-    { "name": "FirstName", "label": "LABEL", "tip": "Pre-race comment (unchanged for those still running)", "postRaceVerdict": "Post-race verdict (only for finishers)" }
-  ]
-}`;
-
-  // ── POST-RACE (window closed, generate full summary) ──────────────────────
-  const postRacePrompt = `${VOICE}
+  if (mode === "post-race") {
+    prompt = `${VOICE}
 
 The ${event.distanceKm}km race is over. Final results:
 ${runnerLines}
 
-Write a post-race verdict for EACH runner. Reference specific numbers: actual time vs prediction vs my estimate. Was I right?
-
-Also write a 2-3 sentence overall closing summary — star of the show, biggest surprise, biggest disappointment. Savage but fair.
+Write a 2-3 sentence overall closing race summary — who was the star, the biggest surprise, the biggest disappointment. Savage but fair.
 
 Respond ONLY with valid JSON:
-{
-  "intro": "1 sentence brutal pre-race recap",
-  "postRaceIntro": "2-3 sentence savage closing summary of the whole race",
-  "tips": [
-    { "name": "FirstName", "label": "LABEL", "tip": "Original pre-race line (keep brief)", "postRaceVerdict": "Post-race verdict." }
-  ]
-}`;
+{ "postRaceIntro": "closing summary here" }`;
+  } else if (mode === "race-day") {
+    prompt = `${VOICE}
 
-  const prompt = isPostRace ? postRacePrompt : isMidRace ? midRacePrompt : preRacePrompt;
+Race day is HERE. ${event.distanceKm}km. The window opens soon.
+
+The field:
+${runnerLines}
+
+Write a 2-sentence race-day intro — full of anticipation, tension, and dry sarcasm. Get them hyped.
+
+Respond ONLY with valid JSON:
+{ "intro": "race day intro here" }`;
+  } else {
+    // pre-race
+    prompt = `${VOICE}
+
+Pre-race briefing for the ${event.distanceKm}km event on ${new Date(event.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
+
+The field so far:
+${runnerLines}
+
+Write a 2-sentence intro that sets the scene for this race — who's entered, what's at stake, what to expect.
+
+Respond ONLY with valid JSON:
+{ "intro": "pre-race intro here" }`;
+  }
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5",
-    max_tokens: 900,
+    max_tokens: 300,
     messages: [{ role: "user", content: prompt }],
   });
 
   const text = response.content[0].type === "text" ? response.content[0].text : "";
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON in Anthropic response");
+  if (!jsonMatch) return;
+  const result = JSON.parse(jsonMatch[0]);
 
-  let commentary: RaceCardCommentary = JSON.parse(jsonMatch[0]);
+  // Merge into existing card
+  const card = await loadCard(eventId) ?? { intro: "", tips: [] };
+  if (result.intro) card.intro = result.intro;
+  if (result.postRaceIntro) card.postRaceIntro = result.postRaceIntro;
 
-  // For mid-race: preserve the existing postRaceIntro if there was one
-  if (isMidRace && event.raceCard) {
-    const existing: RaceCardCommentary = JSON.parse(event.raceCard.commentary);
-    if (existing.postRaceIntro) commentary.postRaceIntro = existing.postRaceIntro;
+  await saveCard(eventId, card);
+}
+
+// ─── ADMIN / LEGACY: full regenerate ─────────────────────────────────────────
+// Used by admin endpoint and cron for bulk operations
+export async function generateRaceCard(eventId: string): Promise<void> {
+  const now = new Date();
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return;
+
+  const windowEnded = now > event.windowEnd;
+  const participants = await prisma.eventParticipant.findMany({
+    where: { eventId, predictedTimeSecs: { not: null } },
+    include: { user: true },
+  });
+  if (participants.length < 1) return;
+
+  const hasResults = participants.some((p) => p.actualTimeSecs);
+
+  // Update each runner's tip
+  for (const p of participants) {
+    await updateRunnerTip(eventId, p.userId).catch(() => {});
   }
 
-  await prisma.raceCard.upsert({
-    where: { eventId },
-    create: { eventId, commentary: JSON.stringify(commentary) },
-    update: { commentary: JSON.stringify(commentary), generatedAt: new Date() },
-  });
+  // Update the race intro with appropriate mode
+  const mode = windowEnded && hasResults ? "post-race"
+    : "pre-race";
+  await updateRaceIntro(eventId, mode).catch(() => {});
 }
