@@ -435,34 +435,77 @@ export async function updateAllOdds(eventId: string): Promise<void> {
     }));
   if (participantData.length < 2) return;
 
-  // All three markets computed deterministically — accurate, instant, no AI
-  const fastestMap  = computeFastestOdds(participantData);
-  const sandbagMap  = computeSandbagOdds(participantData);
-  // Beat estimate: proportional to sandbagging gap (same direction as sandbagger)
-  // but specifically about beating the VDOT estimate
-  const beatMap = computeBeatEstimateOdds(participantData);
+  // Odds: computed deterministically — accurate, instant, no AI
+  const fastestMap = computeFastestOdds(participantData);
+  const sandbagMap = computeSandbagOdds(participantData);
+  const beatMap    = computeBeatEstimateOdds(participantData);
+
+  // Notes: Tips AI writes savage one-liners per runner per market
+  const runnerContext = participantData.map((p) => {
+    const gapSecs = p.predictedTimeSecs! - p.vdotPredictedSecs!;
+    return `- ${p.firstName}: prediction ${formatTime(p.predictedTimeSecs!)} | my estimate ${formatTime(p.vdotPredictedSecs!)} | gap ${gapSecs > 0 ? `+${gapSecs}s (sandbagging)` : `${gapSecs}s (overconfident)`}`;
+  }).join("\n");
+
+  const notesPrompt = `${VOICE}
+
+Write a savage one-liner for each runner in three betting markets. Max 10 words per note. No exact times. Personalise each to that runner's specific situation.
+
+Runners:
+${runnerContext}
+
+Respond ONLY with valid JSON:
+{
+  "fastest":  [{ "name": "FirstName", "note": "one-liner about their pace potential" }],
+  "beat":     [{ "name": "FirstName", "note": "one-liner about beating their estimate" }],
+  "sandbag":  [{ "name": "FirstName", "note": "one-liner about their sandbagging" }]
+}`;
+
+  let notes: {
+    fastest: { name: string; note: string }[];
+    beat:    { name: string; note: string }[];
+    sandbag: { name: string; note: string }[];
+  } = { fastest: [], beat: [], sandbag: [] };
+
+  try {
+    const res = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 600,
+      messages: [{ role: "user", content: notesPrompt }],
+    });
+    const text = res.content[0].type === "text" ? res.content[0].text : "";
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) notes = JSON.parse(m[0]);
+  } catch { /* non-fatal — fall back to empty notes */ }
+
+  const noteMap = (list: { name: string; note: string }[]) =>
+    new Map(list.map((r) => [r.name, r.note]));
+  const fastestNotes = noteMap(notes.fastest);
+  const beatNotes    = noteMap(notes.beat);
+  const sandbagNotes = noteMap(notes.sandbag);
 
   const card = await loadCard(eventId) ?? { intro: "", tips: [] };
 
   const applyMap = (
     map: Map<string, { odds: string; note: string }>,
+    aiNotes: Map<string, string>,
     oddsKey: "fastestOdds" | "odds" | "sandbagOdds",
     noteKey: "fastestOddsNote" | "oddsNote" | "sandbagOddsNote",
   ) => {
     for (const [name, val] of map) {
       const idx = card.tips.findIndex((t) => t.name === name);
+      const note = aiNotes.get(name) ?? val.note; // prefer AI note, fall back to computed
       if (idx >= 0) {
         (card.tips[idx] as Record<string, unknown>)[oddsKey] = val.odds;
-        (card.tips[idx] as Record<string, unknown>)[noteKey] = val.note;
+        (card.tips[idx] as Record<string, unknown>)[noteKey] = note;
       } else {
-        card.tips.push({ name, label: null, tip: "", [oddsKey]: val.odds, [noteKey]: val.note });
+        card.tips.push({ name, label: null, tip: "", [oddsKey]: val.odds, [noteKey]: note });
       }
     }
   };
 
-  applyMap(fastestMap, "fastestOdds", "fastestOddsNote");
-  applyMap(beatMap,    "odds",        "oddsNote");
-  applyMap(sandbagMap, "sandbagOdds", "sandbagOddsNote");
+  applyMap(fastestMap, fastestNotes, "fastestOdds", "fastestOddsNote");
+  applyMap(beatMap,    beatNotes,    "odds",         "oddsNote");
+  applyMap(sandbagMap, sandbagNotes, "sandbagOdds",  "sandbagOddsNote");
 
   await saveCard(eventId, card);
 }

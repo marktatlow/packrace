@@ -247,7 +247,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
                   )}
                 </div>
                 <div style={{ fontSize: 10.5, color: C.dim, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {r.note} · {impliedPct(r.o)}%
+                  {r.note}
                 </div>
               </div>
               <div style={{
