@@ -24,6 +24,8 @@ type Verdict = {
   tip: string;
   odds?: string;
   oddsNote?: string;
+  fastestOdds?: string;
+  fastestOddsNote?: string;
   postRaceVerdict?: string;
 } | undefined;
 
@@ -142,27 +144,47 @@ export default function RunnerCard({
           ))}
 
           {/* Tips Odds — pre-race only, locks when event starts */}
-          {verdict && verdict.odds && !windowEnded && (
-            <div className={`mt-2 rounded-xl p-3 border ${oddsLocked ? "bg-[#0D0F14] border-white/10" : "bg-[#1A1D26] border-[#39FF72]/20"}`}>
-              <div className="flex items-center justify-between mb-2">
+          {verdict && (verdict.odds || verdict.fastestOdds) && !windowEnded && (
+            <div className={`mt-2 rounded-xl border overflow-hidden ${oddsLocked ? "border-white/10" : "border-[#39FF72]/20"}`}>
+              {/* Header */}
+              <div className={`flex items-center justify-between px-3 py-2 ${oddsLocked ? "bg-[#0D0F14]" : "bg-[#39FF72]/5"}`}>
                 <div className="flex items-center gap-2">
-                  <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#39FF72]" />
+                  <img src="/tips-avatar.jpeg" alt="Tips" className="w-4 h-4 rounded-full object-cover border border-[#39FF72]" />
                   <p className="text-[10px] font-black text-[#39FF72] uppercase tracking-wider">Tips Odds</p>
                 </div>
-                {oddsLocked && (
+                {oddsLocked ? (
                   <span className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
-                    <Lock size={10} /> Locked
+                    <Lock size={10} /> Locked at race start
                   </span>
+                ) : (
+                  <span className="text-[10px] text-white/30">Updates as runners join</span>
                 )}
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-white/65 italic leading-snug flex-1">{verdict.oddsNote}</p>
-                <span className={`text-lg font-black tabular-nums whitespace-nowrap ${oddsLocked ? "text-white/40" : "text-[#39FF72]"}`}>
-                  {verdict.odds}
-                </span>
-              </div>
-              {!oddsLocked && (
-                <p className="text-[10px] text-white/30 mt-1.5">Updates as runners join · locks at race start</p>
+
+              {/* Beat estimate */}
+              {verdict.odds && (
+                <div className={`flex items-center justify-between gap-3 px-3 py-2.5 border-t ${oddsLocked ? "border-white/5 bg-[#0D0F14]" : "border-[#39FF72]/10 bg-[#1A1D26]"}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-wider mb-0.5">Beat Estimate</p>
+                    <p className="text-xs text-white/60 italic leading-snug">{verdict.oddsNote}</p>
+                  </div>
+                  <span className={`text-base font-black tabular-nums whitespace-nowrap ${oddsLocked ? "text-white/30" : "text-[#39FF72]"}`}>
+                    {verdict.odds}
+                  </span>
+                </div>
+              )}
+
+              {/* Fastest runner */}
+              {verdict.fastestOdds && (
+                <div className={`flex items-center justify-between gap-3 px-3 py-2.5 border-t ${oddsLocked ? "border-white/5 bg-[#0D0F14]" : "border-[#39FF72]/10 bg-[#1A1D26]"}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-wider mb-0.5">Fastest Runner</p>
+                    <p className="text-xs text-white/60 italic leading-snug">{verdict.fastestOddsNote}</p>
+                  </div>
+                  <span className={`text-base font-black tabular-nums whitespace-nowrap ${oddsLocked ? "text-white/30" : "text-[#00B7FF]"}`}>
+                    {verdict.fastestOdds}
+                  </span>
+                </div>
               )}
             </div>
           )}

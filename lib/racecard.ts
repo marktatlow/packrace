@@ -8,8 +8,10 @@ export type TipsterEntry = {
   name: string;
   label: "SHARP" | "DARK HORSE" | "SANDBAGGING" | "PAP" | null;
   tip: string;
-  odds?: string;      // e.g. "4/1 against", "Evens", "2/1 on" — locked at event start
-  oddsNote?: string;  // one-liner rationale for the odds
+  odds?: string;         // beat-estimate odds e.g. "4/1 against", "Evens", "2/1 on"
+  oddsNote?: string;     // one-liner rationale for beat-estimate odds
+  fastestOdds?: string;  // odds of being fastest runner in the event
+  fastestOddsNote?: string;
   postRaceVerdict?: string;
 };
 
@@ -235,6 +237,65 @@ Respond ONLY with valid JSON:
   await saveCard(eventId, card);
 }
 
+// ─── UPDATE FASTEST-RUNNER ODDS FOR ALL RUNNERS ──────────────────────────────
+// Needs all runners in one prompt to compare them against each other.
+// Called whenever the field changes (new join). Locks at event start.
+export async function updateFastestOdds(eventId: string): Promise<void> {
+  const participants = await prisma.eventParticipant.findMany({
+    where: { eventId, predictedTimeSecs: { not: null } },
+    include: { user: true },
+    orderBy: { vdotPredictedSecs: "asc" }, // fastest estimate first
+  });
+  if (participants.length < 2) return; // need at least 2 to compare
+
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return;
+
+  const runnerLines = participants.map((p) => {
+    const pred = formatTime(p.predictedTimeSecs!);
+    const est = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
+    return `- ${p.user.firstName}: prediction ${pred} | my estimate ${est}`;
+  }).join("\n");
+
+  const prompt = `${VOICE}
+
+You are setting the market for a ${event.distanceKm}km race. Here is the full field with predictions and your performance estimates:
+
+${runnerLines}
+
+For EACH runner, give UK betting odds on them being the FASTEST finisher overall. Use my estimates as the primary guide — a faster estimate = shorter odds. Also factor in predictions (a big sandbagger might have hidden pace). Odds should add up roughly across the field. Give a savage one-liner rationale for each (max 12 words).
+
+Respond ONLY with valid JSON array:
+[
+  { "name": "FirstName", "fastestOdds": "X/Y against|on|Evens", "fastestOddsNote": "one-liner" }
+]`;
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 400,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return;
+  const results: { name: string; fastestOdds: string; fastestOddsNote: string }[] = JSON.parse(jsonMatch[0]);
+
+  const card = await loadCard(eventId) ?? { intro: "", tips: [] };
+
+  for (const r of results) {
+    const idx = card.tips.findIndex((t) => t.name === r.name);
+    if (idx >= 0) {
+      card.tips[idx].fastestOdds = r.fastestOdds;
+      card.tips[idx].fastestOddsNote = r.fastestOddsNote;
+    } else {
+      card.tips.push({ name: r.name, label: null, tip: "", fastestOdds: r.fastestOdds, fastestOddsNote: r.fastestOddsNote });
+    }
+  }
+
+  await saveCard(eventId, card);
+}
+
 // ─── ADMIN / LEGACY: full regenerate ─────────────────────────────────────────
 // Used by admin endpoint and cron for bulk operations
 export async function generateRaceCard(eventId: string): Promise<void> {
@@ -251,13 +312,17 @@ export async function generateRaceCard(eventId: string): Promise<void> {
 
   const hasResults = participants.some((p) => p.actualTimeSecs);
 
-  // Update each runner's tip
+  // Update each runner's individual tip
   for (const p of participants) {
     await updateRunnerTip(eventId, p.userId).catch(() => {});
   }
 
+  // Update fastest-runner odds across the whole field
+  if (!windowEnded) {
+    await updateFastestOdds(eventId).catch(() => {});
+  }
+
   // Update the race intro with appropriate mode
-  const mode = windowEnded && hasResults ? "post-race"
-    : "pre-race";
+  const mode = windowEnded && hasResults ? "post-race" : "pre-race";
   await updateRaceIntro(eventId, mode).catch(() => {});
 }

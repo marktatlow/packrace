@@ -3,7 +3,7 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
 import { syncAndComputeVdot, computeVdotFromDb } from "@/lib/bestEfforts";
-import { updateRunnerTip, updateRaceIntro } from "@/lib/racecard";
+import { updateRunnerTip, updateRaceIntro, updateFastestOdds } from "@/lib/racecard";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromRequest(req);
@@ -54,7 +54,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // 2. Generate this runner's individual tip (with VDOT if available)
     await updateRunnerTip(event.id, session.userId).catch(() => {});
 
-    // 3. Update the race intro to include the new runner
+    // 3. Update fastest-runner odds across the whole field (needs all runners)
+    await updateFastestOdds(event.id).catch(() => {});
+
+    // 4. Update the race intro to include the new runner
     await updateRaceIntro(event.id, "pre-race").catch(() => {});
   })();
 
