@@ -256,10 +256,10 @@ export default function EventDetailClient({
   // Sort participants
   const sorted = [...localParticipants].sort((a, b) => {
     if (!windowStarted) {
-      // Pre-event: sort by VDOT estimate (fastest first), fall back to prediction
-      const aEst = a.vdotPredictedSecs ?? a.predictedTimeSecs ?? Infinity;
-      const bEst = b.vdotPredictedSecs ?? b.predictedTimeSecs ?? Infinity;
-      return aEst - bEst;
+      // Pre-event: sort by user's own predicted time (fastest first)
+      if (!a.predictedTimeSecs) return 1;
+      if (!b.predictedTimeSecs) return -1;
+      return a.predictedTimeSecs - b.predictedTimeSecs;
     }
 
     // During/after event: sort by who beat estimate by most (highest positive margin first)
@@ -391,9 +391,6 @@ export default function EventDetailClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-4xl font-black text-[#F4F4F7] tabular-nums">{formatTime(me.predictedTimeSecs)}</p>
-                      {me.vdotPredictedSecs && (
-                        <p className="text-xs text-white/65 mt-1">Strava est. {formatTime(me.vdotPredictedSecs)}</p>
-                      )}
                     </div>
                     {!windowStarted && (
                       <button onClick={() => predictInput.current?.focus()}

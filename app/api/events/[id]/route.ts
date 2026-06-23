@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
@@ -68,8 +68,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ? { name: user.firstName, oldSecs, newSecs }
       : undefined;
 
-    // Background: VDOT (retry if needed) → runner tip → race intro → fastest odds
-    (async () => {
+    // Use after() so Vercel keeps the function alive past the response
+    after(async () => {
       let hasVdot = !!participant.vdotPredictedSecs;
 
       if (!hasVdot) {
@@ -99,7 +99,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       // Update fastest odds for whole field
       await updateFastestOdds(id).catch(() => {});
-    })();
+    });
   }
 
   return NextResponse.json({ ok: true });

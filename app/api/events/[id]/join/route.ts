@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
@@ -32,8 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     update: {},
   });
 
-  // Background: VDOT (with retries) → Tips → fastest odds → race intro
-  (async () => {
+  // Use after() so Vercel keeps function alive past the response
+  after(async () => {
     // 1. Compute VDOT — retry up to 3 times with 10s gaps if first attempt fails
     let vdotComputed = false;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // 4. Update race intro
     await updateRaceIntro(event.id, "pre-race").catch(() => {});
-  })();
+  });
 
   return NextResponse.json({ ok: true });
 }
