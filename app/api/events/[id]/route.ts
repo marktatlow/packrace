@@ -3,7 +3,7 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
 import { fetchBestEfforts, computeVdotPrediction } from "@/lib/vdot";
-import { updateRunnerTip, updateFastestOdds } from "@/lib/racecard";
+import { updateRunnerTip, updateRaceIntro, updateFastestOdds } from "@/lib/racecard";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -48,12 +48,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (new Date() >= event.windowStart) {
       return NextResponse.json({ error: "Window has started — predictions are locked" }, { status: 400 });
     }
+
+    // Detect if this is a change (not a first-time set)
+    const oldSecs = participant.predictedTimeSecs;
+    const newSecs = body.predictedTimeSecs as number;
+    const isChange = oldSecs !== null && oldSecs !== newSecs;
+
     await prisma.eventParticipant.update({
       where: { id: participant.id },
-      data: { predictedTimeSecs: body.predictedTimeSecs },
+      data: { predictedTimeSecs: newSecs },
     });
 
-    // Background: ensure VDOT is set (retry up to 3x), then regenerate Tips
+    // Need user name for change callout
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { firstName: true },
+    });
+    const changeCtx = isChange && user
+      ? { name: user.firstName, oldSecs, newSecs }
+      : undefined;
+
+    // Background: VDOT (retry if needed) → runner tip → race intro → fastest odds
     (async () => {
       let hasVdot = !!participant.vdotPredictedSecs;
 
@@ -76,8 +91,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
       }
 
-      // Always regenerate this runner's tip + fastest odds for the whole field
-      await updateRunnerTip(id, session.userId).catch(() => {});
+      // Regenerate runner tip (with change callout if applicable)
+      await updateRunnerTip(id, session.userId, changeCtx).catch(() => {});
+
+      // Regenerate race intro (calling out the change if applicable)
+      await updateRaceIntro(id, "pre-race", changeCtx).catch(() => {});
+
+      // Update fastest odds for whole field
       await updateFastestOdds(id).catch(() => {});
     })();
   }

@@ -42,9 +42,14 @@ async function saveCard(eventId: string, commentary: RaceCardCommentary): Promis
   });
 }
 
+export type PredictionChange = {
+  oldSecs: number;
+  newSecs: number;
+};
+
 // ─── UPDATE A SINGLE RUNNER'S TIP ────────────────────────────────────────────
 // Called: on join (after prediction + VDOT), on prediction save, on run completion
-export async function updateRunnerTip(eventId: string, userId: string): Promise<void> {
+export async function updateRunnerTip(eventId: string, userId: string, change?: PredictionChange): Promise<void> {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return;
 
@@ -94,13 +99,19 @@ Respond ONLY with valid JSON:
 { "postRaceVerdict": "verdict here" }`;
   } else {
     // Pre-race: generate or update tip for this runner
+    const changeNote = change
+      ? change.newSecs < change.oldSecs
+        ? `\n⚠️ PREDICTION CHANGE: ${name} just changed their prediction from ${formatTime(change.oldSecs)} to ${formatTime(change.newSecs)} — they are now predicting FASTER. Call this out in your comment with suspicion or intrigue. "What has changed?" "Suddenly confident?" etc.`
+        : `\n⚠️ PREDICTION CHANGE: ${name} just changed their prediction from ${formatTime(change.oldSecs)} to ${formatTime(change.newSecs)} — they are now predicting SLOWER. Call this out with scepticism. "Getting cold feet?" "Adjusting expectations?" "Afraid?" etc.`
+      : "";
+
     prompt = `${VOICE}
 
 ${name} has entered the ${event.distanceKm}km event.
 - Their prediction: ${predTime}
-- My estimate: ${estTime ?? "unknown"}${estTime ? ` (${gapNote})` : ""}
+- My estimate: ${estTime ?? "unknown"}${estTime ? ` (${gapNote})` : ""}${changeNote}
 
-Write ONE pre-race comment for ${name}. Compare their prediction to my estimate. Refer to your estimate as "my estimate" — never mention VDOT, algorithms, or Strava.
+Write ONE pre-race comment for ${name}. Compare their prediction to my estimate. Refer to your estimate as "my estimate" — never mention VDOT, algorithms, or Strava.${change ? " You MUST reference the prediction change in your comment." : ""}
 
 Assign a label:
 - SHARP: prediction closely matches my estimate
@@ -109,7 +120,7 @@ Assign a label:
 - PAP: prediction faster than my estimate (overconfident)
 - null: no estimate yet
 
-Also give Tips Odds — UK betting-style odds on whether ${name} will beat my estimate (run faster than ${estTime ?? "my estimate"}). Express as e.g. "4/1 against", "Evens", "2/1 on". Consider the gap between prediction and estimate. Add a savage one-liner rationale (max 15 words).
+Also give Tips Odds — UK betting-style odds on whether ${name} will beat my estimate. Express as e.g. "4/1 against", "Evens", "2/1 on". Consider the gap between prediction and estimate. Add a savage one-liner rationale (max 15 words).
 
 Respond ONLY with valid JSON:
 { "label": "LABEL_OR_NULL", "tip": "pre-race comment", "odds": "X/Y against|on|Evens", "oddsNote": "one-liner rationale" }`;
@@ -160,7 +171,8 @@ Respond ONLY with valid JSON:
 // Called: on new join, daily cron, race-day at 1am BST, post-event
 export async function updateRaceIntro(
   eventId: string,
-  mode: "pre-race" | "race-day" | "post-race"
+  mode: "pre-race" | "race-day" | "post-race",
+  change?: { name: string } & PredictionChange
 ): Promise<void> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -209,14 +221,20 @@ Respond ONLY with valid JSON:
 { "intro": "race day intro here" }`;
   } else {
     // pre-race
+    const changeCallout = change
+      ? change.newSecs < change.oldSecs
+        ? `\n⚠️ LATE BREAKING: ${change.name} has just changed their prediction from ${formatTime(change.oldSecs)} to ${formatTime(change.newSecs)} — going FASTER. You MUST mention this in your intro. React with suspicion, intrigue, or mockery. "What does ${change.name} know that we don't?" etc.`
+        : `\n⚠️ LATE BREAKING: ${change.name} has just changed their prediction from ${formatTime(change.oldSecs)} to ${formatTime(change.newSecs)} — going SLOWER. You MUST mention this in your intro. Call it out. "${change.name} is getting cold feet." "The nerves are showing." etc.`
+      : "";
+
     prompt = `${VOICE}
 
 Pre-race briefing for the ${event.distanceKm}km event on ${new Date(event.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
 
 The field so far:
-${runnerLines}
+${runnerLines}${changeCallout}
 
-Write a 2-sentence intro that sets the scene for this race — who's entered, what's at stake, what to expect.
+Write a 2-sentence intro that sets the scene for this race.${change ? ` One sentence MUST reference ${change.name}'s prediction change.` : ""}
 
 Respond ONLY with valid JSON:
 { "intro": "pre-race intro here" }`;
