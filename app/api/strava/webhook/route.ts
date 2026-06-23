@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { processActivityForUser } from "@/lib/results";
 
 const VERIFY_TOKEN = process.env.STRAVA_VERIFY_TOKEN ?? "packrace_verify_token";
@@ -32,13 +32,11 @@ export async function POST(req: NextRequest) {
 
   // Only care about new run activities
   if (object_type === "activity" && aspect_type === "create" && owner_id && object_id) {
-    // after() keeps the Vercel function alive after the 200 response is sent,
-    // so processing isn't killed when we return immediately
-    after(async () => {
-      await processActivityForUser(String(owner_id), Number(object_id)).catch((err) =>
-        console.error("Webhook processing error:", err)
-      );
-    });
+    // Await directly — processActivityForUser takes ~600ms, well within Strava's 2s limit
+    // and Vercel's function timeout. fire-and-forget with after() was being killed on Vercel.
+    await processActivityForUser(String(owner_id), Number(object_id)).catch((err) =>
+      console.error("Webhook processing error:", err)
+    );
   }
 
   return NextResponse.json({ ok: true });
