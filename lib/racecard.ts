@@ -261,9 +261,74 @@ Respond ONLY with valid JSON:
   await saveCard(eventId, card);
 }
 
-// ─── UPDATE ALL THREE ODDS MARKETS IN ONE PROMPT ─────────────────────────────
-// Compares ALL runners together so implied probabilities balance (~110-120% book).
-// Generates: fastest runner, beat estimate, biggest sandbagger.
+// ─── Sandbagger odds helper ───────────────────────────────────────────────────
+// Computed deterministically from gap data — no AI needed.
+// gap = predictedTimeSecs - vdotPredictedSecs (positive = sandbagging)
+function decimalToFractional(dec: number): string {
+  if (dec <= 1.05) return "1/20";
+  if (dec <= 1.12) return "1/10";
+  if (dec <= 1.2)  return "1/6";
+  if (dec <= 1.28) return "2/9";
+  if (dec <= 1.36) return "1/3";
+  if (dec <= 1.44) return "4/11";
+  if (dec <= 1.53) return "4/9";
+  if (dec <= 1.62) return "8/13";
+  if (dec <= 1.72) return "1/2";
+  if (dec <= 1.83) return "8/11";
+  if (dec <= 1.95) return "4/5";
+  if (dec <= 2.1)  return "Evens";
+  if (dec <= 2.4)  return "6/4";
+  if (dec <= 2.75) return "7/4";
+  if (dec <= 3.25) return "2/1";
+  if (dec <= 3.75) return "11/4";
+  if (dec <= 4.5)  return "3/1";
+  if (dec <= 5.5)  return "4/1";
+  if (dec <= 6.5)  return "5/1";
+  if (dec <= 7.5)  return "6/1";
+  if (dec <= 9.0)  return "7/1";
+  if (dec <= 11.0) return "9/1";
+  if (dec <= 14.0) return "12/1";
+  if (dec <= 18.0) return "16/1";
+  if (dec <= 25.0) return "20/1";
+  return "33/1";
+}
+
+function computeSandbagOdds(
+  participants: { firstName: string; predictedTimeSecs: number | null; vdotPredictedSecs: number | null }[]
+): Map<string, { odds: string; note: string }> {
+  const gaps = participants.map((p) => ({
+    name: p.firstName,
+    gap: p.vdotPredictedSecs && p.predictedTimeSecs
+      ? Math.max(0, p.predictedTimeSecs - p.vdotPredictedSecs)
+      : 0,
+  }));
+
+  const totalGap = gaps.reduce((s, g) => s + g.gap, 0);
+  const OVERROUND = 1.15; // 115% book
+
+  return new Map(gaps.map((g) => {
+    let dec: number;
+    if (totalGap === 0 || g.gap === 0) {
+      dec = 34; // no sandbagging signal → long odds
+    } else {
+      // Implied prob = gap / totalGap, then apply overround
+      const implied = (g.gap / totalGap) / OVERROUND;
+      dec = 1 / implied;
+    }
+
+    const note = g.gap > 120 ? "Massive gap. Banker."
+      : g.gap > 60  ? "Significant pace hiding."
+      : g.gap > 30  ? "Modest sandbagging."
+      : g.gap > 10  ? "Slight padding."
+      : "No sandbagging detected.";
+
+    return [g.name, { odds: decimalToFractional(dec), note }];
+  }));
+}
+
+// ─── UPDATE ALL THREE ODDS MARKETS ───────────────────────────────────────────
+// Sandbagger: computed from gap data (deterministic, accurate).
+// Fastest + Beat: AI-generated comparing all runners in one prompt.
 // Called on every join and prediction change. Locks at event start.
 export async function updateAllOdds(eventId: string): Promise<void> {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
@@ -279,35 +344,40 @@ export async function updateAllOdds(eventId: string): Promise<void> {
   });
   if (participants.length < 2) return;
 
-  // Include explicit gap in SECONDS — critical for sandbagger market differentiation.
-  // Note: numbers are allowed here as internal bookmaker data, not public commentary.
+  // Compute sandbagger odds deterministically from gap data (no AI needed)
+  const sandbagMap = computeSandbagOdds(
+    participants.map((p) => ({
+      firstName: p.user.firstName,
+      predictedTimeSecs: p.predictedTimeSecs,
+      vdotPredictedSecs: p.vdotPredictedSecs,
+    }))
+  );
+
+  // AI prompt for fastest + beat-estimate only (comparative markets needing judgement)
   const runnerLines = participants.map((p) => {
     const pred = formatTime(p.predictedTimeSecs!);
     const est = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
     const gapSecs = p.vdotPredictedSecs ? p.predictedTimeSecs! - p.vdotPredictedSecs : 0;
-    const gapLabel = gapSecs > 60 ? `sandbagging by ${gapSecs}s — hiding significant pace`
-      : gapSecs > 20 ? `sandbagging by ${gapSecs}s — modest padding`
-      : gapSecs < -20 ? `overconfident by ${Math.abs(gapSecs)}s — prediction too ambitious`
-      : `well-calibrated (${gapSecs}s gap)`;
+    const gapLabel = gapSecs > 60 ? `sandbagging by ${gapSecs}s`
+      : gapSecs > 20 ? `slight padding (${gapSecs}s)`
+      : gapSecs < -20 ? `overconfident by ${Math.abs(gapSecs)}s`
+      : `well-calibrated`;
     return `- ${p.user.firstName}: prediction ${pred} | estimate ${est} | ${gapLabel}`;
   }).join("\n");
 
-  const prompt = `You are the bookmaker for a ${event.distanceKm}km race. Set three markets for the full field. Odds must form a proper book — implied probabilities ~110–120% per market. Use UK fractional odds. Savage one-liner rationale per runner (max 12 words). Do NOT quote exact times in rationale.
+  const prompt = `You are the bookmaker for a ${event.distanceKm}km race. Set TWO markets. Odds must form a proper book (~110–120% implied probability per market). Use UK fractional odds. Savage one-liner rationale per runner (max 12 words, no exact times in rationale).
 
-The field (gap = prediction minus estimate in seconds, positive = sandbagging):
+The field:
 ${runnerLines}
 
-MARKET 1 — Fastest Runner: quickest actual finish time. Use estimate as primary guide — shorter estimate = shorter odds. Factor in sandbagging (hidden pace = shorter odds).
+MARKET 1 — Fastest Runner: who records the quickest actual time? Use estimate as primary guide — faster estimate = shorter odds. Factor in sandbagging (hidden pace means shorter odds even if prediction is slow).
 
-MARKET 2 — Beat the Estimate: who runs faster than their estimate? Large positive gap (sandbagging) → short odds. Large negative gap (overconfident) → long odds. Near zero → near evens.
-
-MARKET 3 — Biggest Sandbagger: who is hiding the most pace? Rank strictly by gap size — the biggest positive gap = shortest odds. Different runners should have meaningfully different odds reflecting their actual gaps. Do NOT set everyone to evens.
+MARKET 2 — Beat the Estimate: who runs faster than my estimate? Large sandbagging gap → short odds (likely to beat). Overconfident → long odds (unlikely to beat). Well-calibrated → near evens.
 
 Respond ONLY with valid JSON:
 {
   "fastest": [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }],
-  "beat":    [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }],
-  "sandbag": [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }]
+  "beat":    [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }]
 }`;
 
   const response = await client.messages.create({
@@ -323,15 +393,14 @@ Respond ONLY with valid JSON:
   const markets: {
     fastest: { name: string; odds: string; note: string }[];
     beat:    { name: string; odds: string; note: string }[];
-    sandbag: { name: string; odds: string; note: string }[];
   } = JSON.parse(jsonMatch[0]);
 
   const card = await loadCard(eventId) ?? { intro: "", tips: [] };
 
   const mergeOdds = (
     list: { name: string; odds: string; note: string }[],
-    oddsKey: "fastestOdds" | "odds" | "sandbagOdds",
-    noteKey: "fastestOddsNote" | "oddsNote" | "sandbagOddsNote",
+    oddsKey: "fastestOdds" | "odds",
+    noteKey: "fastestOddsNote" | "oddsNote",
   ) => {
     for (const r of list) {
       const idx = card.tips.findIndex((t) => t.name === r.name);
@@ -346,7 +415,17 @@ Respond ONLY with valid JSON:
 
   mergeOdds(markets.fastest ?? [], "fastestOdds", "fastestOddsNote");
   mergeOdds(markets.beat    ?? [], "odds",         "oddsNote");
-  mergeOdds(markets.sandbag ?? [], "sandbagOdds",  "sandbagOddsNote");
+
+  // Apply computed sandbagger odds (deterministic from gap data)
+  for (const [name, sb] of sandbagMap) {
+    const idx = card.tips.findIndex((t) => t.name === name);
+    if (idx >= 0) {
+      card.tips[idx].sandbagOdds = sb.odds;
+      card.tips[idx].sandbagOddsNote = sb.note;
+    } else {
+      card.tips.push({ name, label: null, tip: "", sandbagOdds: sb.odds, sandbagOddsNote: sb.note });
+    }
+  }
 
   await saveCard(eventId, card);
 }
