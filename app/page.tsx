@@ -9,7 +9,7 @@ export default async function HomePage() {
   const authUrl = await getStravaAuthUrl();
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] flex flex-col items-center justify-center px-6 text-center">
+    <main className="min-h-screen bg-[#0B0D12] flex flex-col items-center justify-center px-6 text-center">
       {/* Neon glow blobs */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#FF2D94]/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/3 w-48 h-48 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none" />

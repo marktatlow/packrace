@@ -15,7 +15,7 @@ export default async function ProfilePage() {
   if (!user) redirect("/auth/logout");
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto px-4 py-6">
+    <main className="min-h-screen bg-[#0B0D12] max-w-[430px] mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <Link href="/events" className="text-white/50 text-xl hover:text-white transition-colors">←</Link>
@@ -24,7 +24,7 @@ export default async function ProfilePage() {
       </div>
 
       {/* Profile card */}
-      <div className="bg-[#13151C] border border-white/8 rounded-2xl p-6 flex flex-col items-center gap-4 mb-6">
+      <div className="bg-[#12151D] border border-white/8 rounded-2xl p-6 flex flex-col items-center gap-4 mb-6">
         {user.profilePic
           ? <img src={user.profilePic} className="w-20 h-20 rounded-full object-cover ring-2 ring-[#FF2D94]/40" alt={user.firstName} />
           : <div className="w-20 h-20 rounded-full bg-[#FF2D94]/20 border border-[#FF2D94]/40 flex items-center justify-center text-2xl font-black text-[#FF2D94]">{user.firstName[0]}</div>

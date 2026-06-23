@@ -12,7 +12,7 @@ export default function WaiverModal({ onAccept, onCancel }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 px-0 sm:px-4">
-      <div className="bg-[#13151C] border border-white/10 w-full max-w-[430px] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-[#12151D] border border-white/10 w-full max-w-[430px] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="bg-[#FF2D94] px-5 pt-6 pb-5 flex-shrink-0">
@@ -50,7 +50,7 @@ export default function WaiverModal({ onAccept, onCancel }: Props) {
         </div>
 
         {/* Checkbox + buttons */}
-        <div className="flex-shrink-0 px-5 pb-6 pt-4 border-t border-white/8 space-y-4 bg-[#13151C]">
+        <div className="flex-shrink-0 px-5 pb-6 pt-4 border-t border-white/8 space-y-4 bg-[#12151D]">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"

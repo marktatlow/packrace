@@ -1,23 +1,70 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0D0F14;
+  --bg:         #0B0D12;
+  --panel:      #12151D;
+  --panel2:     #171B25;
+  --border:     #242a37;
   --foreground: #F4F4F7;
-  --card: #13151C;
-  --card-raised: #1A1D26;
-  --border: rgba(255,255,255,0.08);
-  --pink: #FF2D94;
-  --blue: #00B7FF;
-  --green: #39FF72;
-  --orange: #FF6A3D;
+  --pink:       #FF2D94;
+  --blue:       #00B7FF;
+  --green:      #39FF72;
+  --orange:     #FF6A3D;
+
+  /* Neon glow shadows */
+  --glow-pink:   0 0 18px rgba(255,45,148,0.55);
+  --glow-blue:   0 0 18px rgba(0,183,255,0.55);
+  --glow-green:  0 0 18px rgba(57,255,114,0.55);
+  --glow-orange: 0 0 18px rgba(255,106,61,0.55);
 }
 
 body {
-  background: var(--background);
+  background: var(--bg);
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+
+/* ── Neon text glow helpers ── */
+.neon-pink   { text-shadow: var(--glow-pink); }
+.neon-blue   { text-shadow: var(--glow-blue); }
+.neon-green  { text-shadow: var(--glow-green); }
+.neon-orange { text-shadow: var(--glow-orange); }
+
+/* ── Card glow borders ── */
+.card-glow-pink   { box-shadow: 0 0 24px rgba(255,45,148,0.2),  0 12px 40px rgba(0,0,0,0.6); }
+.card-glow-green  { box-shadow: 0 0 24px rgba(57,255,114,0.2),  0 12px 40px rgba(0,0,0,0.6); }
+.card-glow-blue   { box-shadow: 0 0 24px rgba(0,183,255,0.2),   0 12px 40px rgba(0,0,0,0.6); }
+.card-depth       { box-shadow: 0 8px 32px rgba(0,0,0,0.55); }
+
+/* ── Monospace numbers ── */
+.tabnum { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ── Pulsing live dot ── */
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+  50%       { opacity: 0.5; box-shadow: 0 0 2px var(--green); }
+}
+.led-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: led-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Scan-line overlay on hero sections ── */
+.scanlines::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.06) 2px,
+    rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
 }

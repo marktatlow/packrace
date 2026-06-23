@@ -68,12 +68,12 @@ export default function RunnerCard({
   const oddsLocked = windowStarted || windowEnded;
 
   return (
-    <div className={`bg-[#13151C] rounded-2xl border transition-all ${isExpanded ? "border-[#FF2D94] shadow-[0_0_20px_rgba(255,45,148,0.15)]" : "border-white/8"} overflow-hidden`}>
+    <div className={`bg-[#12151D] rounded-2xl border transition-all ${isExpanded ? "border-[#FF2D94] shadow-[0_0_20px_rgba(255,45,148,0.15)]" : "border-white/8"} overflow-hidden`}>
       <button onClick={onToggle} className="w-full flex items-center gap-3 p-4 text-left" aria-expanded={isExpanded}>
         <div className="relative flex-shrink-0">
           {p.profilePic
             ? <img src={p.profilePic} className={`w-10 h-10 rounded-full object-cover ${isWinner ? "ring-2 ring-[#FF2D94] ring-offset-1" : ""}`} alt="" />
-            : <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white ${isMe ? "bg-[#FF2D94]" : "bg-[#0D0F14]"} ${isWinner ? "ring-2 ring-[#FF2D94] ring-offset-1" : ""}`}>{p.firstName[0]}</div>
+            : <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white ${isMe ? "bg-[#FF2D94]" : "bg-[#0B0D12]"} ${isWinner ? "ring-2 ring-[#FF2D94] ring-offset-1" : ""}`}>{p.firstName[0]}</div>
           }
           {/* Crown only for overall winner (beat estimate by most) */}
           {isWinner && <Crown size={14} className="absolute -top-2 left-1/2 -translate-x-1/2 text-[#FF2D94]" fill="#F4A623" />}
@@ -115,13 +115,13 @@ export default function RunnerCard({
 
           {/* Stat tiles — My Prediction + Result only */}
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <div className="bg-[#1A1D26] rounded-xl p-2.5 text-center">
+            <div className="bg-[#171B25] rounded-xl p-2.5 text-center">
               <p className="text-[9px] font-black text-white/65 uppercase tracking-wider mb-1">My Prediction</p>
               <p className="text-sm font-black tabular-nums text-[#F4F4F7]">
                 {p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : "—"}
               </p>
             </div>
-            <div className="bg-[#1A1D26] rounded-xl p-2.5 text-center">
+            <div className="bg-[#171B25] rounded-xl p-2.5 text-center">
               <p className="text-[9px] font-black text-white/65 uppercase tracking-wider mb-1">Result</p>
               <p className="text-sm font-black tabular-nums text-[#F4F4F7]">
                 {p.actualTimeSecs ? formatTime(p.actualTimeSecs) : "—"}
@@ -132,7 +132,7 @@ export default function RunnerCard({
           {/* Tips Verdict */}
           {verdict && (windowEnded && verdict.postRaceVerdict ? (
             <div className="mt-3 space-y-2">
-              <div className="bg-[#1A1D26] border border-[#FF2D94]/20 rounded-xl p-3">
+              <div className="bg-[#171B25] border border-[#FF2D94]/20 rounded-xl p-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#FF2D94]" />
                   <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider">Tips' Post-Race Verdict</p>
@@ -140,7 +140,7 @@ export default function RunnerCard({
                 <p className="text-sm text-[#F4F4F7] italic leading-relaxed">{verdict.postRaceVerdict}</p>
               </div>
               {verdict.tip && (
-                <div className="bg-[#1A1D26] border border-white/10 rounded-xl p-3">
+                <div className="bg-[#171B25] border border-white/10 rounded-xl p-3">
                   <p className="text-[10px] font-black text-white/65 uppercase tracking-wider mb-1">Pre-race call</p>
                   <p className="text-xs text-white/70 italic leading-relaxed">{verdict.tip}</p>
                 </div>
@@ -148,7 +148,7 @@ export default function RunnerCard({
             </div>
           ) : (
             verdict.tip ? (
-              <div className="mt-3 bg-[#1A1D26] border border-[#FF2D94]/20 rounded-xl p-3">
+              <div className="mt-3 bg-[#171B25] border border-[#FF2D94]/20 rounded-xl p-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#FF2D94]" />
                   <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider">Tips' Verdict</p>

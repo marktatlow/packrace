@@ -336,10 +336,10 @@ export default function EventDetailClient({
 
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto pb-16">
+    <main className="min-h-screen bg-[#0B0D12] max-w-[430px] mx-auto pb-16">
 
       {/* ── HERO BANNER ── */}
-      <div className="relative bg-[#0D0F14] overflow-hidden border-b border-white/8">
+      <div className="relative bg-[#0B0D12] overflow-hidden border-b border-white/8">
         {/* Neon glow */}
         <div className="absolute top-0 left-0 w-48 h-48 bg-[#FF2D94]/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none translate-x-1/2 -translate-y-1/2" />
@@ -368,8 +368,8 @@ export default function EventDetailClient({
               {windowEnded ? (
                 <span className="inline-flex items-center gap-1 text-xs font-black px-3 py-1.5 rounded-full bg-white/10 text-white/60 border border-white/10">🏁 Finished</span>
               ) : windowStarted ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-full bg-[#39FF72]/15 text-[#39FF72] border border-[#39FF72]/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#39FF72] animate-pulse"/>Live
+                <span className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-full bg-[#39FF72]/15 text-[#39FF72] neon-green border border-[#39FF72]/30">
+                  <span className="led-dot"/>Live
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs font-black px-3 py-1.5 rounded-full bg-[#00B7FF]/10 text-[#00B7FF] border border-[#00B7FF]/30">📅 Open</span>
@@ -389,7 +389,7 @@ export default function EventDetailClient({
 
       {/* ── JOIN BANNER ── */}
       {!joined && (
-        <div className="mx-4 mt-4 bg-[#13151C] border border-[#FF2D94]/60 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-[0_0_20px_rgba(255,45,148,0.1)]">
+        <div className="mx-4 mt-4 bg-[#12151D] border border-[#FF2D94]/60 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-[0_0_20px_rgba(255,45,148,0.1)]">
           <p className="text-sm text-white/70 font-semibold">You&apos;re not in this race yet.</p>
           <button onClick={() => setShowWaiver(true)} disabled={joining}
             className="bg-[#FF2D94] text-white font-black px-4 py-2 rounded-xl text-sm whitespace-nowrap disabled:opacity-50 shadow-sm">
@@ -404,7 +404,7 @@ export default function EventDetailClient({
         {joined && (
           <section>
             <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-2">Your Prediction</p>
-            <div className={`bg-[#13151C] rounded-2xl shadow-sm overflow-hidden border ${!windowStarted ? "border-[#FF2D94]" : "border-white/10"}`}>
+            <div className={`bg-[#12151D] rounded-2xl shadow-sm overflow-hidden border ${!windowStarted ? "border-[#FF2D94]" : "border-white/10"}`}>
               {!windowStarted && <div className="h-1 bg-[#FF2D94]" />}
               {windowStarted && !windowEnded && <div className="h-1 bg-[#39FF72]" />}
               {windowEnded && <div className="h-1 bg-white/10" />}
@@ -530,7 +530,7 @@ export default function EventDetailClient({
           {/* Refresh button */}
           {(windowStarted || windowEnded) && (
             <button onClick={fetchResults} disabled={fetchingResults}
-              className="w-full text-xs text-white/60 font-semibold py-2 rounded-xl border border-white/10 hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors disabled:opacity-40 bg-[#13151C]">
+              className="w-full text-xs text-white/60 font-semibold py-2 rounded-xl border border-white/10 hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors disabled:opacity-40 bg-[#12151D]">
               {fetchingResults ? "Fetching results…" : "🔄 Refresh Results"}
             </button>
           )}
@@ -569,7 +569,7 @@ export default function EventDetailClient({
                   return pDiff < bDiff ? p : best;
                 }, withResults[0]) : null,
                 stat: (() => { const p = withResults.length > 0 ? withResults.reduce((best, p) => Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!) < Math.abs(best.actualTimeSecs! - best.predictedTimeSecs!) ? p : best, withResults[0]) : null; return p ? `Off by ${Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!)}s` : null; })(),
-                bg: "bg-[#1A1D26]",
+                bg: "bg-[#171B25]",
                 border: "border-[#FFE8DC]",
                 color: "text-[#FF2D94]",
               },
@@ -631,14 +631,14 @@ export default function EventDetailClient({
           {!windowEnded && withResults.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               {fastest && (
-                <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
+                <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
                   <p className="text-[10px] font-black text-[#00B7FF] uppercase tracking-wider mb-1">⚡ Fastest so far</p>
                   <p className="text-[#F4F4F7] font-bold">{fastest.firstName}</p>
                   <p className="text-[#00B7FF] font-black text-xl tabular-nums">{formatTime(fastest.actualTimeSecs!)}</p>
                 </div>
               )}
               {winner && (
-                <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
+                <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
                   <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-1">🎯 Leading</p>
                   <p className="text-[#F4F4F7] font-bold">{winner.firstName}</p>
                   <p className="text-[#FF2D94] font-black text-xl tabular-nums">{winner.vdotPredictedSecs ? `Beat est. by ${winner.vdotPredictedSecs - winner.actualTimeSecs!}s` : formatTime(winner.actualTimeSecs!)}</p>
@@ -676,7 +676,7 @@ export default function EventDetailClient({
             </div>
             {commentary && (
               <button onClick={copyRaceCard}
-                className="bg-[#13151C] border border-white/10 text-white/70 text-xs font-semibold px-3 py-2 rounded-xl hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors whitespace-nowrap shadow-sm">
+                className="bg-[#12151D] border border-white/10 text-white/70 text-xs font-semibold px-3 py-2 rounded-xl hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors whitespace-nowrap shadow-sm">
                 {cardCopied ? "Copied!" : "Share"}
               </button>
             )}
@@ -686,7 +686,7 @@ export default function EventDetailClient({
             <div className="space-y-3">
               {/* Pre-event: intro overview only */}
               {!windowEnded && (
-                <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
+                <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
                   <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-2">🎩 Pre-Race Overview</p>
                   <p className="text-white/70 text-sm leading-relaxed italic">{commentary.intro}</p>
                   <ReactionBar
@@ -698,7 +698,7 @@ export default function EventDetailClient({
 
               {/* Post-event: closing memo only */}
               {windowEnded && (
-                <div className="bg-[#0D0F14] rounded-2xl p-4">
+                <div className="bg-[#0B0D12] rounded-2xl p-4">
                   <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-2">🎩 Post-Race Verdict</p>
                   <p className="text-white/90 text-sm leading-relaxed italic">
                     {commentary.postRaceIntro ?? commentary.intro}
@@ -718,7 +718,7 @@ export default function EventDetailClient({
               </p>
             </div>
           ) : (
-            <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-8 text-center">
+            <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-8 text-center">
               <p className="text-4xl mb-2">🎙️</p>
               <p className="text-white/65 text-sm font-semibold">{windowEnded ? "No post-race verdict yet." : "No pre-race tips yet."}</p>
               <p className="text-white/50 text-xs mt-1">Tips auto-generates when runners join. Check back shortly.</p>
@@ -732,7 +732,7 @@ export default function EventDetailClient({
             <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Race Banter</p>
             <span className="text-[10px] text-white/50">· event chat</span>
           </div>
-          <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
+          <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
             <CommentThread
               eventId={event.id}
               targetType="event"
@@ -747,7 +747,7 @@ export default function EventDetailClient({
         <section className="space-y-3">
           <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Race Options</p>
 
-          <div className="bg-[#13151C] rounded-2xl shadow-sm border border-white/10 p-4">
+          <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
             <p className="text-xs text-white/60 font-bold mb-2">Invite Friends</p>
             <div className="flex gap-2 items-center">
               <p className="text-xs text-white/65 flex-1 truncate font-mono">{inviteLink}</p>
@@ -764,11 +764,11 @@ export default function EventDetailClient({
           <img src="/raceparty-icon.png" alt="" className="w-8 h-8" />
           <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-5 w-auto" />
           <p className="text-[10px] font-black tracking-widest uppercase">
-            <span className="text-[#FF2D94]">Predict</span>
+            <span className="text-[#FF2D94] neon-pink">Predict</span>
             <span className="text-white/30"> · </span>
-            <span className="text-[#00B7FF]">Race</span>
+            <span className="text-[#00B7FF] neon-blue">Race</span>
             <span className="text-white/30"> · </span>
-            <span className="text-[#39FF72]">Get Roasted</span>
+            <span className="text-[#39FF72] neon-green">Get Roasted</span>
           </p>
         </div>
 

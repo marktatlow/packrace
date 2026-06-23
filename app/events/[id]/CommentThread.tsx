@@ -77,11 +77,11 @@ export default function CommentThread({
             <div key={c.id} className="flex gap-2 items-start">
               {c.profilePic
                 ? <img src={c.profilePic} className="w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5" alt="" />
-                : <div className={`w-6 h-6 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[10px] font-black text-white ${c.authorId === currentUserId ? "bg-[#FF2D94]" : "bg-[#0D0F14]"}`}>
+                : <div className={`w-6 h-6 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[10px] font-black text-white ${c.authorId === currentUserId ? "bg-[#FF2D94]" : "bg-[#0B0D12]"}`}>
                     {c.authorName[0]}
                   </div>
               }
-              <div className="flex-1 bg-[#1A1D26] rounded-xl px-3 py-2 min-w-0">
+              <div className="flex-1 bg-[#171B25] rounded-xl px-3 py-2 min-w-0">
                 <div className="flex items-baseline gap-1.5 flex-wrap">
                   <span className="text-xs font-black text-[#F4F4F7]">{c.authorName}</span>
                   <span className="text-[10px] text-white/65">{timeAgo(c.createdAt)}</span>
@@ -102,7 +102,7 @@ export default function CommentThread({
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && post()}
           placeholder="Add a comment… 😄"
           maxLength={500}
-          className="flex-1 text-sm text-[#F4F4F7] bg-[#1A1D26] border border-white/10 rounded-full px-4 py-2 focus:outline-none focus:border-[#FF2D94] placeholder-white/30"
+          className="flex-1 text-sm text-[#F4F4F7] bg-[#171B25] border border-white/10 rounded-full px-4 py-2 focus:outline-none focus:border-[#FF2D94] placeholder-white/30"
         />
         <button
           onClick={post}

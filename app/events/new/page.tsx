@@ -47,11 +47,11 @@ export default function NewEventPage() {
     router.push(`/events/${event.id}`);
   }
 
-  const inputClass = "w-full bg-[#0D0F14] border border-white/10 rounded-xl px-4 py-3 text-[#F4F4F7] text-sm focus:outline-none focus:border-[#FF2D94] placeholder-white/25 transition-colors";
+  const inputClass = "w-full bg-[#0B0D12] border border-white/10 rounded-xl px-4 py-3 text-[#F4F4F7] text-sm focus:outline-none focus:border-[#FF2D94] placeholder-white/25 transition-colors";
   const labelClass = "block text-xs font-black text-white/50 uppercase tracking-widest mb-1.5";
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto px-4 py-6">
+    <main className="min-h-screen bg-[#0B0D12] max-w-[430px] mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <Link href="/events" className="text-white/50 text-xl hover:text-white transition-colors">←</Link>
@@ -77,7 +77,7 @@ export default function NewEventPage() {
           <input name="distanceKm" type="number" step="0.01" min="0.1" required placeholder="5" className={inputClass} />
         </div>
 
-        <div className="bg-[#13151C] border border-white/8 rounded-2xl p-4 space-y-4">
+        <div className="bg-[#12151D] border border-white/8 rounded-2xl p-4 space-y-4">
           <div>
             <p className="text-xs font-black text-[#00B7FF] uppercase tracking-widest mb-0.5">Activity Window <span className="text-[#00B7FF]/60 normal-case font-semibold">(BST)</span></p>
             <p className="text-xs text-white/40">Strava runs within this window count as results.</p>

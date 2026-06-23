@@ -53,7 +53,7 @@ export default function EventsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#0D0F14] flex items-center justify-center">
+      <main className="min-h-screen bg-[#0B0D12] flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 border-2 border-[#FF2D94] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-white/40 text-sm">Loading races…</p>
@@ -69,7 +69,7 @@ export default function EventsPage() {
 
     return (
       <Link href={`/events/${e.id}`}>
-        <div className={`bg-[#13151C] rounded-2xl overflow-hidden border transition-all active:scale-[0.99] ${isLive ? "border-[#FF2D94]/60 shadow-[0_0_20px_rgba(255,45,148,0.15)]" : "border-white/8"}`}>
+        <div className={`bg-[#12151D] rounded-2xl overflow-hidden border transition-all active:scale-[0.99] ${isLive ? "border-[#FF2D94]/60 shadow-[0_0_20px_rgba(255,45,148,0.15)]" : "border-white/8"}`}>
           {/* Top accent bar */}
           <div className={`h-0.5 w-full ${isLive ? "bg-[#39FF72]" : "bg-gradient-to-r from-[#FF2D94] to-[#00B7FF]"}`} />
           <div className="p-4">
@@ -114,9 +114,9 @@ export default function EventsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0D0F14] max-w-[430px] mx-auto">
+    <main className="min-h-screen bg-[#0B0D12] max-w-[430px] mx-auto">
       {/* Hero header */}
-      <div className="relative overflow-hidden bg-[#0D0F14] border-b border-white/8">
+      <div className="relative overflow-hidden bg-[#0B0D12] border-b border-white/8">
         {/* Neon glows */}
         <div className="absolute top-0 left-1/4 w-72 h-40 bg-[#FF2D94]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-0 right-0 w-40 h-40 bg-[#00B7FF]/8 rounded-full blur-3xl pointer-events-none" />
@@ -142,11 +142,11 @@ export default function EventsPage() {
           <img src="/raceparty-icon.png" alt="" className="w-16 h-16 mb-3" />
           <img src="/raceparty-wordmarkx.png" alt="RaceParty" className="h-14 w-auto" />
           <p className="text-xs mt-2 font-black tracking-widest uppercase">
-            <span className="text-[#FF2D94]">Predict</span>
+            <span className="text-[#FF2D94] neon-pink">Predict</span>
             <span className="text-white/30"> · </span>
-            <span className="text-[#00B7FF]">Race</span>
+            <span className="text-[#00B7FF] neon-blue">Race</span>
             <span className="text-white/30"> · </span>
-            <span className="text-[#39FF72]">Get Roasted</span>
+            <span className="text-[#39FF72] neon-green">Get Roasted</span>
           </p>
         </div>
       </div>
