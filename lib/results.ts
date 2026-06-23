@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { refreshTokenIfNeeded } from "./strava";
+import { generateRaceCard } from "./racecard";
 
 const STRAVA_API = "https://www.strava.com/api/v3";
 const RUN_TYPES = ["Run", "TrailRun", "VirtualRun"];
@@ -107,6 +108,12 @@ export async function processActivityForUser(
         },
       });
       console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
+
+      // Regenerate Tips so this athlete gets a post-race verdict
+      await generateRaceCard(participant.eventId).catch((err) =>
+        console.error(`Tips regeneration failed for event ${participant.eventId}:`, err)
+      );
+
       return `updated ${user.firstName}: ${bestSecs}s`;
     }
   }
