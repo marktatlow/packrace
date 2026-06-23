@@ -330,13 +330,13 @@ function computeSandbagOdds(
       dec = implied > 0 ? 1 / implied : 34;
     }
 
-    const note = g.raw > 120  ? "Massive hidden reserves. Banker."
-      : g.raw > 60   ? "Significant pace sandbagged."
-      : g.raw > 20   ? "Modest padding."
-      : g.raw > -20  ? "Suspiciously honest."
-      : g.raw > -60  ? "Slightly ambitious."
-      : g.raw > -120 ? "Optimistic. Very."
-      :                "Living in a fantasy.";
+    const note = g.raw > 120  ? `${g.name} is hiding a serious amount of pace. Banker.`
+      : g.raw > 60   ? `${g.name}'s gap between promise and data is very telling.`
+      : g.raw > 20   ? `${g.name} is padding ever so slightly. Suspicious.`
+      : g.raw > -20  ? `${g.name} is refreshingly honest — almost suspicious.`
+      : g.raw > -60  ? `${g.name} thinks they're better than the data suggests.`
+      : g.raw > -120 ? `${g.name} is firmly in denial about current form.`
+      :                `${g.name}'s prediction is an act of pure optimism.`;
 
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
@@ -369,11 +369,12 @@ function computeBeatEstimateOdds(
       const implied = (g.weight / totalWeight) / OVERROUND;
       dec = implied > 0 ? 1 / implied : 34;
     }
-    const note = g.raw > 60  ? "Hiding serious pace. Will beat it."
-      : g.raw > 20  ? "Should comfortably beat the estimate."
-      : g.raw > -20 ? "Roughly matched. Could go either way."
-      : g.raw > -60 ? "Ambitious prediction. Unlikely."
-      :               "Very optimistic. Long shot.";
+    const note = g.raw > 60  ? `${g.name} is hiding serious pace — this prediction is a smokescreen.`
+      : g.raw > 20  ? `${g.name} should beat this comfortably if they actually try.`
+      : g.raw > -20 ? `${g.name} is well calibrated. Coin toss.`
+      : g.raw > -60 ? `${g.name}'s prediction outpaces their recent form.`
+      : g.raw > -120 ? `${g.name} is backing a version of themselves that doesn't exist yet.`
+      :                `${g.name}'s prediction is pure fiction. The data disagrees.`;
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
 }
@@ -399,10 +400,11 @@ function computeFastestOdds(
 
     // Rank among field for note
     const rank = speeds.slice().sort((a, b) => a.secs - b.secs).findIndex((s) => s.name === r.name) + 1;
-    const note = rank === 1 ? "Fastest on paper. Favourite."
-      : rank === 2 ? "Strong second string."
-      : rank === 3 ? "Dark horse in contention."
-      : "Needs everything to go right.";
+    const note = rank === 1 ? `${r.name} is the benchmark. Everyone else is chasing.`
+      : rank === 2 ? `${r.name} is the one to watch if the favourite stumbles.`
+      : rank === 3 ? `${r.name} has the pace — needs a perfect day.`
+      : rank < speeds.length - 1 ? `${r.name} could surprise but the data says otherwise.`
+      : `${r.name} needs everything to go right, and then some.`;
 
     return [r.name, { odds: decimalToFractional(dec), note }];
   }));
@@ -482,8 +484,11 @@ Respond ONLY with valid JSON:
     if (m) notes = JSON.parse(m[0]);
   } catch { /* non-fatal — fall back to empty notes */ }
 
+  // Case-insensitive lookup so "david" matches "David" etc.
   const noteMap = (list: { name: string; note: string }[]) =>
-    new Map(list.map((r) => [r.name, r.note]));
+    new Map(list.map((r) => [r.name.toLowerCase(), r.note]));
+  const getNoteAI = (map: Map<string, string>, name: string) =>
+    map.get(name.toLowerCase());
   const fastestNotes = noteMap(notes.fastest);
   const beatNotes    = noteMap(notes.beat);
   const sandbagNotes = noteMap(notes.sandbag);
@@ -498,7 +503,7 @@ Respond ONLY with valid JSON:
   ) => {
     for (const [name, val] of map) {
       const idx = card.tips.findIndex((t) => t.name === name);
-      const note = aiNotes.get(name) ?? val.note; // prefer AI note, fall back to computed
+      const note = getNoteAI(aiNotes, name) ?? val.note; // AI note preferred, fall back to computed
       if (idx >= 0) {
         (card.tips[idx] as Record<string, unknown>)[oddsKey] = val.odds;
         (card.tips[idx] as Record<string, unknown>)[noteKey] = note;
