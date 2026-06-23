@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const participants = await prisma.eventParticipant.findMany({
-    where: { eventId, actualTimeSecs: { not: null }, stravaActivityId: { not: null }, streamDistance: null },
+    where: { eventId, actualTimeSecs: { not: null }, stravaActivityId: { not: null } },
     include: { user: true },
   });
 
