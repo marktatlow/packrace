@@ -330,13 +330,13 @@ function computeSandbagOdds(
       dec = implied > 0 ? 1 / implied : 34;
     }
 
-    const note = g.raw > 120  ? `${g.name} is hiding a serious amount of pace. Banker.`
-      : g.raw > 60   ? `${g.name}'s gap between promise and data is very telling.`
-      : g.raw > 20   ? `${g.name} is padding ever so slightly. Suspicious.`
-      : g.raw > -20  ? `${g.name} is refreshingly honest — almost suspicious.`
-      : g.raw > -60  ? `${g.name} thinks they're better than the data suggests.`
-      : g.raw > -120 ? `${g.name} is firmly in denial about current form.`
-      :                `${g.name}'s prediction is an act of pure optimism.`;
+    const note = g.raw > 120  ? "Hiding serious pace. Banker."
+      : g.raw > 60   ? "Big gap. Very suspicious."
+      : g.raw > 20   ? "Slight padding. Worth noting."
+      : g.raw > -20  ? "Honest. Almost too honest."
+      : g.raw > -60  ? "Thinks more than data suggests."
+      : g.raw > -120 ? "Firmly in denial here."
+      :                "Pure optimism. Nothing more.";
 
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
@@ -369,12 +369,12 @@ function computeBeatEstimateOdds(
       const implied = (g.weight / totalWeight) / OVERROUND;
       dec = implied > 0 ? 1 / implied : 34;
     }
-    const note = g.raw > 60  ? `${g.name} is hiding serious pace — this prediction is a smokescreen.`
-      : g.raw > 20  ? `${g.name} should beat this comfortably if they actually try.`
-      : g.raw > -20 ? `${g.name} is well calibrated. Coin toss.`
-      : g.raw > -60 ? `${g.name}'s prediction outpaces their recent form.`
-      : g.raw > -120 ? `${g.name} is backing a version of themselves that doesn't exist yet.`
-      :                `${g.name}'s prediction is pure fiction. The data disagrees.`;
+    const note = g.raw > 60  ? "Hiding serious pace. Short."
+      : g.raw > 20  ? "Should beat this comfortably."
+      : g.raw > -20 ? "Well calibrated. Coin toss."
+      : g.raw > -60 ? "Prediction outpaces the form."
+      : g.raw > -120 ? "Very optimistic prediction here."
+      :                "Pure fantasy. Data disagrees.";
     return [g.name, { odds: decimalToFractional(dec), note }];
   }));
 }
@@ -400,11 +400,11 @@ function computeFastestOdds(
 
     // Rank among field for note
     const rank = speeds.slice().sort((a, b) => a.secs - b.secs).findIndex((s) => s.name === r.name) + 1;
-    const note = rank === 1 ? `${r.name} is the benchmark. Everyone else is chasing.`
-      : rank === 2 ? `${r.name} is the one to watch if the favourite stumbles.`
-      : rank === 3 ? `${r.name} has the pace — needs a perfect day.`
-      : rank < speeds.length - 1 ? `${r.name} could surprise but the data says otherwise.`
-      : `${r.name} needs everything to go right, and then some.`;
+    const note = rank === 1 ? "The benchmark. Favourite."
+      : rank === 2 ? "Danger if favourite stumbles."
+      : rank === 3 ? "Pace there. Needs luck."
+      : rank < speeds.length - 1 ? "Could sneak a surprise."
+      : "Needs a miracle, frankly.";
 
     return [r.name, { odds: decimalToFractional(dec), note }];
   }));
@@ -450,21 +450,20 @@ export async function updateAllOdds(eventId: string): Promise<void> {
 
   const notesPrompt = `${VOICE}
 
-Write a savage, UNIQUE one-liner for each runner across three betting markets. Every single note must be different — no repeated phrases, no template language. Tailor each note to that specific runner's name and situation. Max 10 words. No exact times or numbers.
+Write a savage, UNIQUE sub-caption for each runner across three betting markets. STRICT rules:
+- MAX 5 WORDS per note
+- NO runner names (shown separately)
+- Every note must be different — no repeated phrases
+- Vary tone: wry, brutal, deadpan, backhanded
 
-Runners and their situations:
+Runners and situations:
 ${runnerContext}
-
-Rules:
-- Every note must be unique across the entire response — no two notes can use the same phrase or structure
-- Reference the runner's name or a detail specific to them
-- Vary the style: some wry, some brutal, some backhanded compliment, some deadpan
 
 Respond ONLY with valid JSON:
 {
-  "fastest":  [{ "name": "FirstName", "note": "unique one-liner about their pace potential" }],
-  "beat":     [{ "name": "FirstName", "note": "unique one-liner about beating their own prediction" }],
-  "sandbag":  [{ "name": "FirstName", "note": "unique one-liner about their gap between prediction and form" }]
+  "fastest":  [{ "name": "FirstName", "note": "max 5 words" }],
+  "beat":     [{ "name": "FirstName", "note": "max 5 words" }],
+  "sandbag":  [{ "name": "FirstName", "note": "max 5 words" }]
 }`;
 
   let notes: {
