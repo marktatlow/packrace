@@ -334,9 +334,74 @@ function computeSandbagOdds(
   }));
 }
 
+// ─── Beat estimate odds helper ───────────────────────────────────────────────
+// Runners predicting slower than estimate are MOST likely to beat it (sandbagging).
+// Runners predicting faster than estimate are LEAST likely to beat it (overconfident).
+function computeBeatEstimateOdds(
+  participants: { firstName: string; vdotPredictedSecs: number | null; predictedTimeSecs: number | null }[]
+): Map<string, { odds: string; note: string }> {
+  // gap = predicted - estimate: positive = sandbagging (likely to beat estimate)
+  // Shift by min so all weights are non-negative, same approach as sandbagger
+  const rawGaps = participants.map((p) => ({
+    name: p.firstName,
+    raw: p.vdotPredictedSecs && p.predictedTimeSecs
+      ? p.predictedTimeSecs - p.vdotPredictedSecs
+      : 0,
+  }));
+  const minRaw = Math.min(...rawGaps.map((g) => g.raw));
+  const gaps = rawGaps.map((g) => ({ name: g.name, raw: g.raw, weight: g.raw - minRaw }));
+  const totalWeight = gaps.reduce((s, g) => s + g.weight, 0);
+  const OVERROUND = 1.15;
+
+  return new Map(gaps.map((g) => {
+    let dec: number;
+    if (totalWeight === 0) {
+      dec = 1 + (participants.length - 1) * OVERROUND;
+    } else {
+      const implied = (g.weight / totalWeight) / OVERROUND;
+      dec = implied > 0 ? 1 / implied : 34;
+    }
+    const note = g.raw > 60  ? "Hiding serious pace. Will beat it."
+      : g.raw > 20  ? "Should comfortably beat the estimate."
+      : g.raw > -20 ? "Roughly matched. Could go either way."
+      : g.raw > -60 ? "Ambitious prediction. Unlikely."
+      :               "Very optimistic. Long shot.";
+    return [g.name, { odds: decimalToFractional(dec), note }];
+  }));
+}
+
+// ─── Fastest runner odds helper ──────────────────────────────────────────────
+// Computed from VDOT estimates. Faster estimate = shorter odds.
+// Implied probability proportional to 1/estimateSecs (speed, not time).
+function computeFastestOdds(
+  participants: { firstName: string; vdotPredictedSecs: number | null; predictedTimeSecs: number | null }[]
+): Map<string, { odds: string; note: string }> {
+  // Use VDOT estimate; fall back to user prediction if no estimate
+  const speeds = participants.map((p) => ({
+    name: p.firstName,
+    secs: p.vdotPredictedSecs ?? p.predictedTimeSecs ?? 9999,
+  }));
+
+  const totalInvSpeed = speeds.reduce((s, r) => s + 1 / r.secs, 0);
+  const OVERROUND = 1.15;
+
+  return new Map(speeds.map((r) => {
+    const implied = (1 / r.secs / totalInvSpeed) / OVERROUND;
+    const dec = 1 / implied;
+
+    // Rank among field for note
+    const rank = speeds.slice().sort((a, b) => a.secs - b.secs).findIndex((s) => s.name === r.name) + 1;
+    const note = rank === 1 ? "Fastest on paper. Favourite."
+      : rank === 2 ? "Strong second string."
+      : rank === 3 ? "Dark horse in contention."
+      : "Needs everything to go right.";
+
+    return [r.name, { odds: decimalToFractional(dec), note }];
+  }));
+}
+
 // ─── UPDATE ALL THREE ODDS MARKETS ───────────────────────────────────────────
-// Sandbagger: computed from gap data (deterministic, accurate).
-// Fastest + Beat: AI-generated comparing all runners in one prompt.
+// All three markets now computed deterministically — no AI needed.
 // Called on every join and prediction change. Locks at event start.
 export async function updateAllOdds(eventId: string): Promise<void> {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
@@ -352,88 +417,40 @@ export async function updateAllOdds(eventId: string): Promise<void> {
   });
   if (participants.length < 2) return;
 
-  // Compute sandbagger odds deterministically from gap data (no AI needed)
-  const sandbagMap = computeSandbagOdds(
-    participants.map((p) => ({
-      firstName: p.user.firstName,
-      predictedTimeSecs: p.predictedTimeSecs,
-      vdotPredictedSecs: p.vdotPredictedSecs,
-    }))
-  );
+  const participantData = participants.map((p) => ({
+    firstName: p.user.firstName,
+    predictedTimeSecs: p.predictedTimeSecs,
+    vdotPredictedSecs: p.vdotPredictedSecs,
+  }));
 
-  // AI prompt for fastest + beat-estimate only (comparative markets needing judgement)
-  const runnerLines = participants.map((p) => {
-    const pred = formatTime(p.predictedTimeSecs!);
-    const est = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
-    const gapSecs = p.vdotPredictedSecs ? p.predictedTimeSecs! - p.vdotPredictedSecs : 0;
-    const gapLabel = gapSecs > 60 ? `sandbagging by ${gapSecs}s`
-      : gapSecs > 20 ? `slight padding (${gapSecs}s)`
-      : gapSecs < -20 ? `overconfident by ${Math.abs(gapSecs)}s`
-      : `well-calibrated`;
-    return `- ${p.user.firstName}: prediction ${pred} | estimate ${est} | ${gapLabel}`;
-  }).join("\n");
-
-  const prompt = `You are the bookmaker for a ${event.distanceKm}km race. Set TWO markets. Odds must form a proper book (~110–120% implied probability per market). Use UK fractional odds. Savage one-liner rationale per runner (max 12 words, no exact times in rationale).
-
-The field:
-${runnerLines}
-
-MARKET 1 — Fastest Runner: who records the quickest actual time? Use estimate as primary guide — faster estimate = shorter odds. Factor in sandbagging (hidden pace means shorter odds even if prediction is slow).
-
-MARKET 2 — Beat the Estimate: who runs faster than my estimate? Large sandbagging gap → short odds (likely to beat). Overconfident → long odds (unlikely to beat). Well-calibrated → near evens.
-
-Respond ONLY with valid JSON:
-{
-  "fastest": [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }],
-  "beat":    [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }]
-}`;
-
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 700,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text = response.content[0].type === "text" ? response.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return;
-
-  const markets: {
-    fastest: { name: string; odds: string; note: string }[];
-    beat:    { name: string; odds: string; note: string }[];
-  } = JSON.parse(jsonMatch[0]);
+  // All three markets computed deterministically — accurate, instant, no AI
+  const fastestMap  = computeFastestOdds(participantData);
+  const sandbagMap  = computeSandbagOdds(participantData);
+  // Beat estimate: proportional to sandbagging gap (same direction as sandbagger)
+  // but specifically about beating the VDOT estimate
+  const beatMap = computeBeatEstimateOdds(participantData);
 
   const card = await loadCard(eventId) ?? { intro: "", tips: [] };
 
-  const mergeOdds = (
-    list: { name: string; odds: string; note: string }[],
-    oddsKey: "fastestOdds" | "odds",
-    noteKey: "fastestOddsNote" | "oddsNote",
+  const applyMap = (
+    map: Map<string, { odds: string; note: string }>,
+    oddsKey: "fastestOdds" | "odds" | "sandbagOdds",
+    noteKey: "fastestOddsNote" | "oddsNote" | "sandbagOddsNote",
   ) => {
-    for (const r of list) {
-      const idx = card.tips.findIndex((t) => t.name === r.name);
+    for (const [name, val] of map) {
+      const idx = card.tips.findIndex((t) => t.name === name);
       if (idx >= 0) {
-        (card.tips[idx] as Record<string, unknown>)[oddsKey] = r.odds;
-        (card.tips[idx] as Record<string, unknown>)[noteKey] = r.note;
+        (card.tips[idx] as Record<string, unknown>)[oddsKey] = val.odds;
+        (card.tips[idx] as Record<string, unknown>)[noteKey] = val.note;
       } else {
-        card.tips.push({ name: r.name, label: null, tip: "", [oddsKey]: r.odds, [noteKey]: r.note });
+        card.tips.push({ name, label: null, tip: "", [oddsKey]: val.odds, [noteKey]: val.note });
       }
     }
   };
 
-  mergeOdds(markets.fastest ?? [], "fastestOdds", "fastestOddsNote");
-  mergeOdds(markets.beat    ?? [], "odds",         "oddsNote");
-
-  // Apply computed sandbagger odds (deterministic from gap data)
-  for (const [name, sb] of sandbagMap) {
-    const idx = card.tips.findIndex((t) => t.name === name);
-    if (idx >= 0) {
-      card.tips[idx].sandbagOdds = sb.odds;
-      card.tips[idx].sandbagOddsNote = sb.note;
-    } else {
-      card.tips.push({ name, label: null, tip: "", sandbagOdds: sb.odds, sandbagOddsNote: sb.note });
-    }
-  }
+  applyMap(fastestMap, "fastestOdds", "fastestOddsNote");
+  applyMap(beatMap,    "odds",        "oddsNote");
+  applyMap(sandbagMap, "sandbagOdds", "sandbagOddsNote");
 
   await saveCard(eventId, card);
 }
