@@ -8,6 +8,7 @@ import RunnerCard, { ReactionBar } from "./RunnerCard";
 import type { ReactionsMap, CommentsMap } from "./page";
 import CommentThread from "./CommentThread";
 import BettingBoard from "./BettingBoard";
+import RaceReplay from "./RaceReplay";
 
 type Participant = {
   id: string;
@@ -20,6 +21,8 @@ type Participant = {
   vdotPredictedSecs: number | null;
   personalBestSecs: number | null;
   resultFetchedAt: string | null;
+  streamDistance: number[] | null;
+  streamTime: number[] | null;
 };
 
 type SortKey = "predicted" | "actual" | "diff";
@@ -742,6 +745,23 @@ export default function EventDetailClient({
             />
           </div>
         </section>
+
+        {/* ══ SECTION 4b — RACE REPLAY ══ */}
+        {windowEnded && (() => {
+          const replayRunners = localParticipants
+            .filter((p) => p.actualTimeSecs && p.streamDistance && p.streamTime)
+            .map((p) => ({
+              name: p.firstName,
+              actualTimeSecs: p.actualTimeSecs!,
+              distData: p.streamDistance as number[],
+              timeData: p.streamTime as number[],
+            }));
+          return replayRunners.length >= 2 ? (
+            <section>
+              <RaceReplay runners={replayRunners} distanceKm={event.distanceKm} />
+            </section>
+          ) : null;
+        })()}
 
         {/* ══ SECTION 5 — ACTIONS ══ */}
         <section className="space-y-3">

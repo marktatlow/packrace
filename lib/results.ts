@@ -5,6 +5,47 @@ import { updateRunnerTip, updateRaceIntro } from "./racecard";
 const STRAVA_API = "https://www.strava.com/api/v3";
 const RUN_TYPES = ["Run", "TrailRun", "VirtualRun"];
 
+/** Downsample an array to at most maxPoints, keeping first + last */
+function downsample(arr: number[], maxPoints: number): number[] {
+  if (arr.length <= maxPoints) return arr;
+  const step = (arr.length - 1) / (maxPoints - 1);
+  return Array.from({ length: maxPoints }, (_, i) => arr[Math.round(i * step)]);
+}
+
+/** Extract the fastest segment slice, normalised to start at 0 */
+function extractFastestSegment(
+  distStream: number[],
+  timeStream: number[],
+  targetMeters: number
+): { dist: number[]; time: number[] } {
+  let left = 0;
+  let bestLeft = 0;
+  let bestRight = 0;
+  let bestSecs: number | null = null;
+
+  for (let right = 0; right < distStream.length; right++) {
+    while (distStream[right] - distStream[left] > targetMeters) left++;
+    const windowDist = distStream[right] - distStream[left];
+    if (windowDist >= targetMeters * 0.96) {
+      const windowTime = timeStream[right] - timeStream[left];
+      if (bestSecs === null || windowTime < bestSecs) {
+        bestSecs = windowTime;
+        bestLeft = left;
+        bestRight = right;
+      }
+    }
+  }
+
+  const distSlice = distStream.slice(bestLeft, bestRight + 1);
+  const timeSlice = timeStream.slice(bestLeft, bestRight + 1);
+  const d0 = distSlice[0];
+  const t0 = timeSlice[0];
+  return {
+    dist: distSlice.map(d => d - d0),
+    time: timeSlice.map(t => t - t0),
+  };
+}
+
 // Sliding window: find the fastest segment of exactly targetMeters within a stream
 function fastestSegment(
   distanceStream: number[],
@@ -83,21 +124,30 @@ export async function processActivityForUser(
 
     let bestSecs: number | null = null;
     let bestActivityId: bigint | null = BigInt(stravaActivityId);
+    let segmentDist: number[] | null = null;
+    let segmentTime: number[] | null = null;
+
+    // Always fetch streams — needed for replay chart + longer-run segment detection
+    const streamsRes = await fetch(
+      `${STRAVA_API}/activities/${stravaActivityId}/streams?keys=distance,time&key_by_type=true`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const streams = await streamsRes.json();
+    const distData: number[] = streams?.distance?.data ?? [];
+    const timeData: number[] = streams?.time?.data ?? [];
 
     if (activity.distance <= targetMeters * 1.04) {
+      // Close enough — use full stream normalised to event distance
       bestSecs = activity.moving_time;
-      console.log(`Using moving_time directly: ${bestSecs}s`);
-    } else {
-      console.log(`Fetching streams for ${stravaActivityId}...`);
-      const streamsRes = await fetch(
-        `${STRAVA_API}/activities/${stravaActivityId}/streams?keys=distance,time&key_by_type=true`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      const streams = await streamsRes.json();
-      console.log(`Streams status: ${streamsRes.status}, has data: ${!!streams?.distance?.data}`);
-      if (streams?.distance?.data && streams?.time?.data) {
-        bestSecs = fastestSegment(streams.distance.data, streams.time.data, targetMeters);
-        console.log(`fastestSegment result: ${bestSecs}s`);
+      segmentDist = distData;
+      segmentTime = timeData;
+    } else if (distData.length > 0 && timeData.length > 0) {
+      // Longer run — find fastest segment and extract that slice
+      bestSecs = fastestSegment(distData, timeData, targetMeters);
+      if (bestSecs !== null) {
+        const seg = extractFastestSegment(distData, timeData, targetMeters);
+        segmentDist = seg.dist;
+        segmentTime = seg.time;
       }
     }
 
@@ -113,6 +163,9 @@ export async function processActivityForUser(
           actualTimeSecs: bestSecs,
           stravaActivityId: bestActivityId ?? undefined,
           resultFetchedAt: new Date(),
+          // Store normalised stream for race replay chart
+          streamDistance: segmentDist ? downsample(segmentDist, 150) : undefined,
+          streamTime: segmentTime ? downsample(segmentTime, 150) : undefined,
         },
       });
       console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);

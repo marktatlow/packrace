@@ -109,6 +109,8 @@ model EventParticipant {
   personalBestSecs   Int?
   stravaActivityId   BigInt?
   resultFetchedAt    DateTime?
+  streamDistance     Json?     // number[] — normalised distance stream for race segment
+  streamTime         Json?     // number[] — normalised elapsed time stream for race segment
   joinedAt         DateTime  @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

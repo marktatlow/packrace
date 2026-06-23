@@ -71,6 +71,8 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     vdotPredictedSecs: p.vdotPredictedSecs,
     personalBestSecs: p.personalBestSecs,
     resultFetchedAt: p.resultFetchedAt?.toISOString() ?? null,
+    streamDistance: p.streamDistance as number[] | null,
+    streamTime: p.streamTime as number[] | null,
   }));
 
   return (
