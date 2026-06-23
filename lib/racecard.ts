@@ -266,6 +266,12 @@ Respond ONLY with valid JSON:
 // Generates: fastest runner, beat estimate, biggest sandbagger.
 // Called on every join and prediction change. Locks at event start.
 export async function updateAllOdds(eventId: string): Promise<void> {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return;
+
+  // Never update odds once the event window has started — they lock at that point
+  if (new Date() >= event.windowStart) return;
+
   const participants = await prisma.eventParticipant.findMany({
     where: { eventId, predictedTimeSecs: { not: null } },
     include: { user: true },
@@ -273,48 +279,35 @@ export async function updateAllOdds(eventId: string): Promise<void> {
   });
   if (participants.length < 2) return;
 
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) return;
-
+  // Include explicit gap in SECONDS — critical for sandbagger market differentiation.
+  // Note: numbers are allowed here as internal bookmaker data, not public commentary.
   const runnerLines = participants.map((p) => {
     const pred = formatTime(p.predictedTimeSecs!);
     const est = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
-    const gap = p.vdotPredictedSecs
-      ? p.predictedTimeSecs! > p.vdotPredictedSecs
-        ? `prediction significantly slower than my analysis — sandbagging signal`
-        : p.predictedTimeSecs! < p.vdotPredictedSecs
-        ? `prediction faster than my analysis — overconfident signal`
-        : `prediction matches my analysis`
-      : `no estimate available`;
-    return `- ${p.user.firstName}: prediction ${pred} | my analysis: ${est} | ${gap}`;
+    const gapSecs = p.vdotPredictedSecs ? p.predictedTimeSecs! - p.vdotPredictedSecs : 0;
+    const gapLabel = gapSecs > 60 ? `sandbagging by ${gapSecs}s — hiding significant pace`
+      : gapSecs > 20 ? `sandbagging by ${gapSecs}s — modest padding`
+      : gapSecs < -20 ? `overconfident by ${Math.abs(gapSecs)}s — prediction too ambitious`
+      : `well-calibrated (${gapSecs}s gap)`;
+    return `- ${p.user.firstName}: prediction ${pred} | estimate ${est} | ${gapLabel}`;
   }).join("\n");
 
-  const prompt = `${VOICE}
+  const prompt = `You are the bookmaker for a ${event.distanceKm}km race. Set three markets for the full field. Odds must form a proper book — implied probabilities ~110–120% per market. Use UK fractional odds. Savage one-liner rationale per runner (max 12 words). Do NOT quote exact times in rationale.
 
-You are the bookmaker for a ${event.distanceKm}km race. Set three markets for the full field below. Odds must form a proper book — implied probabilities should total ~110–120% per market (like a real bookmaker's overround). Use UK fractional odds. Give a savage one-liner rationale per runner per market (max 12 words, no exact times or numbers).
-
-The field:
+The field (gap = prediction minus estimate in seconds, positive = sandbagging):
 ${runnerLines}
 
-Set ALL THREE markets for ALL runners:
+MARKET 1 — Fastest Runner: quickest actual finish time. Use estimate as primary guide — shorter estimate = shorter odds. Factor in sandbagging (hidden pace = shorter odds).
 
-MARKET 1 — Fastest Runner: who will record the quickest actual finish time? Primary guide: my analysis estimates. Shorter estimate = shorter odds. A big sandbagger may have hidden pace — factor that in.
+MARKET 2 — Beat the Estimate: who runs faster than their estimate? Large positive gap (sandbagging) → short odds. Large negative gap (overconfident) → long odds. Near zero → near evens.
 
-MARKET 2 — Beat the Estimate: who will run faster than my analysis suggests? If prediction is much slower than estimate (sandbagging) → short odds. If prediction is faster than estimate (overconfident) → long odds. If matched → near evens.
-
-MARKET 3 — Biggest Sandbagger: who has the biggest gap between their prediction and what my analysis says they can do? The one hiding the most pace should be the favourite.
+MARKET 3 — Biggest Sandbagger: who is hiding the most pace? Rank strictly by gap size — the biggest positive gap = shortest odds. Different runners should have meaningfully different odds reflecting their actual gaps. Do NOT set everyone to evens.
 
 Respond ONLY with valid JSON:
 {
-  "fastest": [
-    { "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "savage rationale" }
-  ],
-  "beat": [
-    { "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "savage rationale" }
-  ],
-  "sandbag": [
-    { "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "savage rationale" }
-  ]
+  "fastest": [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }],
+  "beat":    [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }],
+  "sandbag": [{ "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "rationale" }]
 }`;
 
   const response = await client.messages.create({

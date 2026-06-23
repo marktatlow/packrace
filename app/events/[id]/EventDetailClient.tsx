@@ -187,6 +187,7 @@ export default function EventDetailClient({
       ? parts[0] * 3600 + parts[1] * 60 + parts[2]
       : parts[0] * 60 + (parts[1] || 0);
     setSaving(true);
+    const savedAt = Date.now();
     await fetch(`/api/events/${event.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -196,6 +197,26 @@ export default function EventDetailClient({
       prev.map((p) => p.userId === currentUserId ? { ...p, predictedTimeSecs: secs } : p)
     );
     setSaving(false);
+
+    // Poll for updated race card (Tips + odds regenerate in background via after())
+    // Check every 5s for up to 90s until the card is newer than our save time
+    let attempts = 0;
+    const poll = async () => {
+      attempts++;
+      if (attempts > 18) return; // give up after 90s
+      try {
+        const res = await fetch(`/api/events/${event.id}/racecard`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.generatedAt && new Date(data.generatedAt).getTime() > savedAt) {
+            setRaceCard({ commentary: data.commentary, generatedAt: data.generatedAt });
+            return; // updated — stop polling
+          }
+        }
+      } catch { /* silent */ }
+      setTimeout(poll, 5000);
+    };
+    setTimeout(poll, 8000); // first check after 8s (VDOT + Tips takes time)
   }
 
   async function generateRaceCard() {
