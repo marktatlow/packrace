@@ -142,7 +142,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
 
   const MARKETS = {
     fastest: { label: "Fastest Runner", sub: "To record the quickest actual time", icon: Trophy, accent: C.green },
-    beat:    { label: "Beat the Estimate", sub: "To run faster than Tips' analysis suggests", icon: Crosshair, accent: C.blue },
+    beat:    { label: "Beat the Estimate", sub: "Who will beat their own predicted time", icon: Crosshair, accent: C.blue },
     sandbag: { label: "Biggest Sandbagger", sub: "Novelty · biggest gap between prediction and form", icon: Drama, accent: C.orange },
   } as const;
 

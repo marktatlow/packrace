@@ -448,16 +448,21 @@ export async function updateAllOdds(eventId: string): Promise<void> {
 
   const notesPrompt = `${VOICE}
 
-Write a savage one-liner for each runner in three betting markets. Max 10 words per note. No exact times. Personalise each to that runner's specific situation.
+Write a savage, UNIQUE one-liner for each runner across three betting markets. Every single note must be different — no repeated phrases, no template language. Tailor each note to that specific runner's name and situation. Max 10 words. No exact times or numbers.
 
-Runners:
+Runners and their situations:
 ${runnerContext}
+
+Rules:
+- Every note must be unique across the entire response — no two notes can use the same phrase or structure
+- Reference the runner's name or a detail specific to them
+- Vary the style: some wry, some brutal, some backhanded compliment, some deadpan
 
 Respond ONLY with valid JSON:
 {
-  "fastest":  [{ "name": "FirstName", "note": "one-liner about their pace potential" }],
-  "beat":     [{ "name": "FirstName", "note": "one-liner about beating their estimate" }],
-  "sandbag":  [{ "name": "FirstName", "note": "one-liner about their sandbagging" }]
+  "fastest":  [{ "name": "FirstName", "note": "unique one-liner about their pace potential" }],
+  "beat":     [{ "name": "FirstName", "note": "unique one-liner about beating their own prediction" }],
+  "sandbag":  [{ "name": "FirstName", "note": "unique one-liner about their gap between prediction and form" }]
 }`;
 
   let notes: {
