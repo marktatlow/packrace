@@ -105,20 +105,26 @@ export async function processActivityForUser(
 
     if (bestSecs !== null) {
       console.log(`Writing result: ${bestSecs}s for participant ${participant.id}`);
-      await prisma.eventParticipant.update({
-        where: { id: participant.id },
-        data: {
-          actualTimeSecs: bestSecs,
-          stravaActivityId: bestActivityId ?? undefined,
-          resultFetchedAt: new Date(),
-        },
-      });
-      console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
+      try {
+        await prisma.eventParticipant.update({
+          where: { id: participant.id },
+          data: {
+            actualTimeSecs: bestSecs,
+            resultFetchedAt: new Date(),
+            // Skip stravaActivityId to avoid BigInt serialization issues
+          },
+        });
+        console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
+        return `updated ${user.firstName}: ${bestSecs}s`;
+      } catch (writeErr) {
+        console.error(`Prisma write failed:`, writeErr);
+        return `write error: ${String(writeErr)}`;
+      }
     } else {
       console.log(`bestSecs is null — no update made`);
     }
   }
-  return `done`;
+  return `done - no update`;
 }
 
 export async function fetchResultsForEvent(eventId: string, isLive = false) {
