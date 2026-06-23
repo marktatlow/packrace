@@ -12,7 +12,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
 
-  // Require waiver acceptance
   if (!body.waiverAccepted) {
     return NextResponse.json({ error: "Waiver not accepted" }, { status: 400 });
   }
@@ -20,7 +19,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const event = await prisma.event.findUnique({ where: { id } });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-  // Record waiver acceptance on the user (once accepted, valid for all future events)
   await prisma.user.update({
     where: { id: session.userId },
     data: { waiverAcceptedAt: new Date() },
@@ -32,18 +30,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     update: {},
   });
 
-  // Compute Strava Est. in background — don't block the join response
+  // Run VDOT sync and Tips regeneration in background — don't block join response
   (async () => {
+    // Step 1: try to compute VDOT estimate — failure must not block Tips
     try {
       const targetMeters = event.distanceKm * 1000;
       const existing = await prisma.bestEffort.count({ where: { userId: session.userId } });
 
       let vdotPredictedSecs: number | null;
       if (existing > 0) {
-        // Already have stored efforts — compute from DB instantly, no Strava call
         vdotPredictedSecs = await computeVdotFromDb(session.userId, targetMeters);
       } else {
-        // First time joining any event — do a full Strava sync
         const accessToken = await refreshTokenIfNeeded(session.userId);
         vdotPredictedSecs = await syncAndComputeVdot(session.userId, accessToken, targetMeters);
       }
@@ -54,10 +51,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           data: { vdotPredictedSecs },
         });
       }
+    } catch {
+      // VDOT failed — non-fatal, continue to Tips regeneration
+    }
 
-      // Always regenerate Tips when a new runner joins so they're included
-      await generateRaceCard(event.id).catch(() => { /* non-fatal */ });
-    } catch { /* non-fatal */ }
+    // Step 2: always regenerate Tips, whether VDOT succeeded or not
+    try {
+      await generateRaceCard(event.id);
+    } catch {
+      // Tips failed — non-fatal
+    }
   })();
 
   return NextResponse.json({ ok: true });
