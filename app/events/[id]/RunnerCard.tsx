@@ -75,11 +75,16 @@ export default function RunnerCard({
             ? <img src={p.profilePic} className={`w-10 h-10 rounded-full object-cover ${isWinner ? "ring-2 ring-[#FF2D94] ring-offset-1" : ""}`} alt="" />
             : <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white ${isMe ? "bg-[#FF2D94]" : "bg-[#0D0F14]"} ${isWinner ? "ring-2 ring-[#FF2D94] ring-offset-1" : ""}`}>{p.firstName[0]}</div>
           }
+          {/* Crown only for overall winner (beat estimate by most) */}
           {isWinner && <Crown size={14} className="absolute -top-2 left-1/2 -translate-x-1/2 text-[#FF2D94]" fill="#F4A623" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`font-black text-base ${isMe ? "text-[#FF2D94]" : "text-[#F4F4F7]"}`}>{p.firstName}</span>
+            {/* Trophy badges — only appear once runner has a result */}
+            {p.actualTimeSecs && rank === 0 && <span className="text-base">🥇</span>}
+            {p.actualTimeSecs && rank === 1 && <span className="text-base">🥈</span>}
+            {p.actualTimeSecs && rank === 2 && <span className="text-base">🥉</span>}
             {isWinner && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FF2D94]/10 text-[#FF2D94]">WINNER</span>}
             {isFastest && !isWinner && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#00B7FF]/10 text-[#00B7FF]">⚡ FASTEST</span>}
             {isSandbagger && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FF6A3D]/10 text-[#FF6A3D]">🎭 SANDBAGGER</span>}
@@ -91,14 +96,14 @@ export default function RunnerCard({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <span className={`text-base font-black tabular-nums ${beatMargin !== null ? marginColor : "text-white/30"}`}>
+          <span className={`text-sm font-black tabular-nums ${beatMargin !== null ? marginColor : "text-white/40"}`}>
             {beatMargin !== null
               ? beatMargin > 0
-                ? `+${beatMargin}s`   // beat estimate — show positive margin
-                : `${beatMargin}s`    // missed estimate — show negative
+                ? `+${beatMargin}s`  // beat estimate — green
+                : `${beatMargin}s`   // missed estimate — orange/red
               : hasAnyResults
-                ? "—"                 // still running while others have finished
-                : rank < 3 ? RANK_EMOJI[rank] : `${rank + 1}` // pre-results: position only
+                ? "—"                // still running while others have finished
+                : `${rank + 1}`      // pre-results: plain position number, no trophies
             }
           </span>
           <ChevronDown size={16} className={`text-white/65 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
