@@ -73,15 +73,9 @@ export async function processActivityForUser(
     const targetMeters = participant.event.distanceKm * 1000;
 
     // Check activity is within this event's window
-    const winStart = new Date(participant.event.windowStart);
-    const winEnd = new Date(participant.event.windowEnd);
-    if (activityDate < winStart || activityDate > winEnd) {
-      return `date mismatch: activity=${activityDate.toISOString()} window=${winStart.toISOString()}–${winEnd.toISOString()}`;
-    }
+    if (activityDate < participant.event.windowStart || activityDate > participant.event.windowEnd) continue;
     // Check distance is close enough
-    if (activity.distance < targetMeters * 0.96) {
-      return `distance too short: ${activity.distance}m < ${targetMeters * 0.96}m target`;
-    }
+    if (activity.distance < targetMeters * 0.96) continue;
 
     let bestSecs: number | null = null;
     let bestActivityId: bigint | null = BigInt(stravaActivityId);
@@ -104,27 +98,19 @@ export async function processActivityForUser(
     }
 
     if (bestSecs !== null) {
-      console.log(`Writing result: ${bestSecs}s for participant ${participant.id}`);
-      try {
-        await prisma.eventParticipant.update({
-          where: { id: participant.id },
-          data: {
-            actualTimeSecs: bestSecs,
-            resultFetchedAt: new Date(),
-            // Skip stravaActivityId to avoid BigInt serialization issues
-          },
-        });
-        console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
-        return `updated ${user.firstName}: ${bestSecs}s`;
-      } catch (writeErr) {
-        console.error(`Prisma write failed:`, writeErr);
-        return `write error: ${String(writeErr)}`;
-      }
-    } else {
-      console.log(`bestSecs is null — no update made`);
+      await prisma.eventParticipant.update({
+        where: { id: participant.id },
+        data: {
+          actualTimeSecs: bestSecs,
+          stravaActivityId: bestActivityId ?? undefined,
+          resultFetchedAt: new Date(),
+        },
+      });
+      console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
+      return `updated ${user.firstName}: ${bestSecs}s`;
     }
   }
-  return `done - no update`;
+  return `done`;
 }
 
 export async function fetchResultsForEvent(eventId: string, isLive = false) {
