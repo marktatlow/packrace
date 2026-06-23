@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { refreshTokenIfNeeded } from "./strava";
-import { updateRunnerTip } from "./racecard";
+import { updateRunnerTip, updateRaceIntro } from "./racecard";
 
 const STRAVA_API = "https://www.strava.com/api/v3";
 const RUN_TYPES = ["Run", "TrailRun", "VirtualRun"];
@@ -67,6 +67,9 @@ export async function processActivityForUser(
   const activity = await res.json();
 
   if (!RUN_TYPES.includes(activity.sport_type ?? activity.type)) return `not a run: ${activity.sport_type ?? activity.type}`;
+  // Exclude treadmill / indoor trainer runs — outdoor only
+  if (activity.trainer === true) return `treadmill run excluded`;
+  if (activity.manual === true) return `manual entry excluded`;
 
   const activityDate = new Date(activity.start_date);
 
@@ -99,6 +102,11 @@ export async function processActivityForUser(
     }
 
     if (bestSecs !== null) {
+      // Only update if this is faster than any existing result (multiple runs scenario)
+      if (participant.actualTimeSecs !== null && bestSecs >= participant.actualTimeSecs) {
+        return `slower than existing result (${bestSecs}s vs ${participant.actualTimeSecs}s) — keeping best`;
+      }
+
       await prisma.eventParticipant.update({
         where: { id: participant.id },
         data: {
@@ -109,10 +117,18 @@ export async function processActivityForUser(
       });
       console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
 
-      // Generate post-race verdict for this athlete only
+      // Generate post-race verdict for this athlete
       await updateRunnerTip(participant.eventId, user.id).catch((err) =>
         console.error(`Tips runner update failed:`, err)
       );
+
+      // If the event window has now closed, generate the race closing summary too
+      const now2 = new Date();
+      if (now2 > participant.event.windowEnd) {
+        await updateRaceIntro(participant.eventId, "post-race").catch((err) =>
+          console.error(`Post-race summary failed:`, err)
+        );
+      }
 
       return `updated ${user.firstName}: ${bestSecs}s`;
     }
@@ -151,8 +167,11 @@ export async function fetchResultsForEvent(eventId: string, isLive = false) {
       if (!Array.isArray(activities)) continue;
 
       const runs = activities.filter(
-        (a: { type: string; distance: number }) =>
-          RUN_TYPES.includes(a.type) && a.distance >= targetMeters * 0.96
+        (a: { type: string; sport_type?: string; distance: number; trainer?: boolean; manual?: boolean }) =>
+          RUN_TYPES.includes(a.sport_type ?? a.type) &&
+          a.distance >= targetMeters * 0.96 &&
+          !a.trainer &&   // exclude treadmill
+          !a.manual       // exclude manual entries
       );
 
       if (runs.length === 0) {
