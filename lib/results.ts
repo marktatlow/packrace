@@ -73,14 +73,14 @@ export async function processActivityForUser(
     const targetMeters = participant.event.distanceKm * 1000;
 
     // Check activity is within this event's window
-    if (activityDate < participant.event.windowStart || activityDate > participant.event.windowEnd) {
-      console.log(`Activity date ${activityDate.toISOString()} outside window ${participant.event.windowStart.toISOString()} - ${participant.event.windowEnd.toISOString()}`);
-      continue;
+    const winStart = new Date(participant.event.windowStart);
+    const winEnd = new Date(participant.event.windowEnd);
+    if (activityDate < winStart || activityDate > winEnd) {
+      return `date mismatch: activity=${activityDate.toISOString()} window=${winStart.toISOString()}–${winEnd.toISOString()}`;
     }
     // Check distance is close enough
     if (activity.distance < targetMeters * 0.96) {
-      console.log(`Activity distance ${activity.distance}m too short for target ${targetMeters}m`);
-      continue;
+      return `distance too short: ${activity.distance}m < ${targetMeters * 0.96}m target`;
     }
 
     let bestSecs: number | null = null;
