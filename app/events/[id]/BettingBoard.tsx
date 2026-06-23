@@ -18,15 +18,6 @@ const C = {
   orange: "#FF6A3D",
 };
 
-// Trap colours cycling through brand palette
-const TRAP_COLORS = [
-  { bg: "#FF2D94", fg: "#fff" },
-  { bg: "#00B7FF", fg: "#11141b" },
-  { bg: "#39FF72", fg: "#11141b" },
-  { bg: "#FF6A3D", fg: "#fff" },
-  { bg: "#7B2FBE", fg: "#fff" },
-  { bg: "#F4F4F7", fg: "#11141b" },
-];
 
 // ── Odds helpers ──────────────────────────────────────────────────────────────
 /** Parse Tips odds string e.g. "4/1 against", "2/1 on", "Evens" → [num, den] */
@@ -50,7 +41,7 @@ function fracStr([n, d]: [number, number]) {
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Runner = {
   name: string;
-  trap: number;
+  pos: number;
   o: [number, number];
   note: string;
 };
@@ -58,7 +49,7 @@ type Runner = {
 type SlipItem = {
   mk: string;
   name: string;
-  trap: number;
+  pos: number;
   o: [number, number];
   accent: string;
   marketLabel: string;
@@ -81,17 +72,17 @@ type Props = {
   windowEnded: boolean;
 };
 
-function TrapBadge({ trap, size = 34 }: { trap: number; size?: number }) {
-  const t = TRAP_COLORS[(trap - 1) % TRAP_COLORS.length];
+function PosBadge({ pos, size = 34 }: { pos: number; size?: number }) {
+  const emoji = pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : null;
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.24,
-      background: t.bg, color: t.fg,
+      background: C.panel2, border: `1px solid ${C.line}`,
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontWeight: 800, fontSize: size * 0.48, flexShrink: 0,
-      border: t.bg === "#F4F4F7" ? `1px solid ${C.line}` : "none",
+      fontWeight: 900, fontSize: emoji ? size * 0.55 : size * 0.42,
+      color: C.dim, flexShrink: 0,
     }}>
-      {trap}
+      {emoji ?? pos}
     </div>
   );
 }
@@ -109,28 +100,28 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
       .filter((p) => p.vdotPredictedSecs && p.predictedTimeSecs)
       .map((p, idx) => {
         const tip = tips.find((t) => t.name === p.firstName);
-        const trap = (idx % 6) + 1;
+        // pos assigned after sort
         const sandbaggingGap = p.vdotPredictedSecs && p.predictedTimeSecs
           ? p.predictedTimeSecs - p.vdotPredictedSecs  // positive = sandbagging
           : 0;
 
         if (market === "fastest") {
           return {
-            name: p.firstName, trap,
+            name: p.firstName, pos: 0, // assigned after sort
             o: parseOdds(tip?.fastestOdds),
             note: tip?.fastestOddsNote ?? "—",
           };
         }
         if (market === "beat") {
           return {
-            name: p.firstName, trap,
+            name: p.firstName, pos: 0, // assigned after sort
             o: parseOdds(tip?.odds),
             note: tip?.oddsNote ?? "—",
           };
         }
         // sandbagger market — from AI-generated odds
         return {
-          name: p.firstName, trap,
+          name: p.firstName, pos: 0, // assigned after sort
           o: parseOdds(tip?.sandbagOdds),
           note: tip?.sandbagOddsNote ?? "—",
         };
@@ -149,12 +140,12 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
   const m = MARKETS[market];
 
   const inSlip = (mk: string, name: string) => slip.some((s) => s.mk === mk && s.name === name);
-  const toggle = (r: Runner) => {
+  const toggle = (r: Runner, pos: number) => {
     const key = { mk: market, name: r.name };
     setSlip((s) =>
       inSlip(market, r.name)
         ? s.filter((x) => !(x.mk === market && x.name === r.name))
-        : [...s, { ...key, o: r.o, accent: m.accent, marketLabel: m.label, trap: r.trap }]
+        : [...s, { ...key, o: r.o, accent: m.accent, marketLabel: m.label, pos }]
     );
   };
 
@@ -230,13 +221,13 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
           const fav = i === 0;
           const picked = inSlip(market, r.name);
           return (
-            <button key={r.name} onClick={() => !oddsLocked && toggle(r)} style={{
+            <button key={r.name} onClick={() => !oddsLocked && toggle(r, i + 1)} style={{
               width: "100%", display: "flex", alignItems: "center", gap: 10, textAlign: "left",
               background: picked ? C.panel2 : C.panel, cursor: oddsLocked ? "default" : "pointer",
               border: `1px solid ${picked ? m.accent : C.line}`, borderRadius: 12,
               padding: "9px 10px", marginBottom: 6,
             }}>
-              <TrapBadge trap={r.trap} />
+              <PosBadge pos={i + 1} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{r.name}</span>
@@ -286,7 +277,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
           </div>
           {slip.map((s) => (
             <div key={s.mk + s.name} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 12 }}>
-              <TrapBadge trap={s.trap} size={18} />
+              <PosBadge pos={slip.indexOf(s) + 1} size={18} />
               <span style={{ flex: 1, color: C.text, fontWeight: 600 }}>{s.name}</span>
               <span style={{ color: C.dim, fontSize: 10 }}>{s.marketLabel}</span>
               <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 800, color: s.accent }}>{oddsLabel(s.o)}</span>
