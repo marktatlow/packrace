@@ -7,6 +7,7 @@ import WaiverModal from "@/app/components/WaiverModal";
 import RunnerCard, { ReactionBar } from "./RunnerCard";
 import type { ReactionsMap, CommentsMap } from "./page";
 import CommentThread from "./CommentThread";
+import BettingBoard from "./BettingBoard";
 
 type Participant = {
   id: string;
@@ -625,6 +626,22 @@ export default function EventDetailClient({
             </div>
           )}
         </section>
+
+        {/* ══ SECTION 2b — BETTING BOARD ══ */}
+        {commentary && commentary.tips.length > 0 && (
+          <section>
+            <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-3">RaceParty Odds</p>
+            <BettingBoard
+              eventName={event.name}
+              distanceKm={event.distanceKm}
+              windowStart={event.windowStart}
+              participants={localParticipants}
+              tips={commentary.tips}
+              windowStarted={windowStarted}
+              windowEnded={windowEnded}
+            />
+          </section>
+        )}
 
         {/* ══ SECTION 3 — TIPS ══ */}
         <section>
