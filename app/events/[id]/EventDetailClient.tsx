@@ -255,20 +255,32 @@ export default function EventDetailClient({
 
   // Sort participants
   const sorted = [...localParticipants].sort((a, b) => {
-    if (sort === "predicted") {
-      if (!a.predictedTimeSecs) return 1;
-      if (!b.predictedTimeSecs) return -1;
-      return a.predictedTimeSecs - b.predictedTimeSecs;
+    if (!windowStarted) {
+      // Pre-event: sort by VDOT estimate (fastest first), fall back to prediction
+      const aEst = a.vdotPredictedSecs ?? a.predictedTimeSecs ?? Infinity;
+      const bEst = b.vdotPredictedSecs ?? b.predictedTimeSecs ?? Infinity;
+      return aEst - bEst;
     }
-    if (sort === "actual") {
-      if (!a.actualTimeSecs) return 1;
-      if (!b.actualTimeSecs) return -1;
-      return a.actualTimeSecs - b.actualTimeSecs;
-    }
-    // diff — closest prediction first
-    const aDiff = a.predictedTimeSecs && a.actualTimeSecs ? Math.abs(a.actualTimeSecs - a.predictedTimeSecs) : Infinity;
-    const bDiff = b.predictedTimeSecs && b.actualTimeSecs ? Math.abs(b.actualTimeSecs - b.predictedTimeSecs) : Infinity;
-    return aDiff - bDiff;
+
+    // During/after event: sort by who beat estimate by most (highest positive margin first)
+    // Athletes with results rank above those still running
+    const aMargin = a.vdotPredictedSecs && a.actualTimeSecs
+      ? a.vdotPredictedSecs - a.actualTimeSecs  // positive = beat estimate
+      : a.actualTimeSecs ? -Infinity             // has result but no estimate → bottom of results
+      : null;                                    // no result yet → after all finishers
+    const bMargin = b.vdotPredictedSecs && b.actualTimeSecs
+      ? b.vdotPredictedSecs - b.actualTimeSecs
+      : b.actualTimeSecs ? -Infinity
+      : null;
+
+    if (aMargin !== null && bMargin !== null) return bMargin - aMargin; // both have results
+    if (aMargin !== null) return -1; // a finished, b hasn't
+    if (bMargin !== null) return 1;  // b finished, a hasn't
+
+    // Neither has finished — sort by VDOT estimate
+    const aEst = a.vdotPredictedSecs ?? a.predictedTimeSecs ?? Infinity;
+    const bEst = b.vdotPredictedSecs ?? b.predictedTimeSecs ?? Infinity;
+    return aEst - bEst;
   });
 
   // Badges
@@ -480,6 +492,7 @@ export default function EventDetailClient({
                   isFastest={!!(fastest?.userId === p.userId && withResults.length > 1)}
                   isSandbagger={!!(sandbagger?.userId === p.userId && withResults.length > 1)}
                   isPb={!!(pbAlert?.userId === p.userId)}
+                  hasAnyResults={hasAnyActual}
                   verdict={verdict}
                   reactions={reactions[p.id] ?? {}}
                   isExpanded={expandedCard === p.id}

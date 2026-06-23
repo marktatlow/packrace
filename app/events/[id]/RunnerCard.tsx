@@ -37,6 +37,7 @@ type Props = {
   isFastest: boolean;
   isSandbagger: boolean;
   isPb: boolean;
+  hasAnyResults: boolean;
   verdict: Verdict;
   reactions: ReactionsMap[string];
   isExpanded: boolean;
@@ -50,17 +51,19 @@ type Props = {
 };
 
 export default function RunnerCard({
-  p, rank, isWinner, isMe, isFastest, isSandbagger, isPb,
+  p, rank, isWinner, isMe, isFastest, isSandbagger, isPb, hasAnyResults,
   verdict, reactions, isExpanded, onToggle, onReact,
   eventId, windowStarted, windowEnded, currentUserId, comments,
 }: Props) {
-  const diffSecs = p.predictedTimeSecs && p.actualTimeSecs
-    ? Math.abs(p.actualTimeSecs - p.predictedTimeSecs) : null;
+  // Beat-estimate margin: positive = beat it, negative = missed it
+  const beatMargin = p.vdotPredictedSecs && p.actualTimeSecs
+    ? p.vdotPredictedSecs - p.actualTimeSecs
+    : null;
 
-  const diffColor = diffSecs === null ? "text-white/30"
-    : diffSecs <= 15 ? "text-[#39FF72]"
-    : diffSecs <= 45 ? "text-[#FF6A3D]"
-    : "text-red-500";
+  const marginColor = beatMargin === null ? "text-white/30"
+    : beatMargin > 0 ? "text-[#39FF72]"   // beat estimate
+    : beatMargin > -30 ? "text-[#FF6A3D]" // just missed
+    : "text-red-500";                      // well off
 
   const oddsLocked = windowStarted || windowEnded;
 
@@ -88,8 +91,15 @@ export default function RunnerCard({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <span className={`text-base font-black tabular-nums ${diffColor}`}>
-            {diffSecs !== null ? `${diffSecs}s` : rank < 3 ? RANK_EMOJI[rank] : `${rank + 1}`}
+          <span className={`text-base font-black tabular-nums ${beatMargin !== null ? marginColor : "text-white/30"}`}>
+            {beatMargin !== null
+              ? beatMargin > 0
+                ? `+${beatMargin}s`   // beat estimate — show positive margin
+                : `${beatMargin}s`    // missed estimate — show negative
+              : hasAnyResults
+                ? "—"                 // still running while others have finished
+                : rank < 3 ? RANK_EMOJI[rank] : `${rank + 1}` // pre-results: position only
+            }
           </span>
           <ChevronDown size={16} className={`text-white/65 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
         </div>
