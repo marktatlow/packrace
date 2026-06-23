@@ -3,6 +3,9 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
 import { fetchBestEfforts, computeVdotPrediction } from "@/lib/vdot";
+import { updateRunnerTip, updateFastestOdds } from "@/lib/racecard";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromRequest(req);
@@ -50,22 +53,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data: { predictedTimeSecs: body.predictedTimeSecs },
     });
 
-    // Compute Strava Est. in background if not yet stored
-    if (!participant.vdotPredictedSecs) {
-      (async () => {
-        try {
-          const accessToken = await refreshTokenIfNeeded(session.userId);
-          const efforts = await fetchBestEfforts(accessToken);
-          const vdotPredictedSecs = computeVdotPrediction(efforts, event.distanceKm * 1000);
-          if (vdotPredictedSecs) {
-            await prisma.eventParticipant.update({
-              where: { id: participant.id },
-              data: { vdotPredictedSecs },
-            });
-          }
-        } catch { /* non-fatal */ }
-      })();
-    }
+    // Background: ensure VDOT is set (retry up to 3x), then regenerate Tips
+    (async () => {
+      let hasVdot = !!participant.vdotPredictedSecs;
+
+      if (!hasVdot) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            if (attempt > 0) await sleep(10_000);
+            const accessToken = await refreshTokenIfNeeded(session.userId);
+            const efforts = await fetchBestEfforts(accessToken);
+            const vdotPredictedSecs = computeVdotPrediction(efforts, event.distanceKm * 1000);
+            if (vdotPredictedSecs) {
+              await prisma.eventParticipant.update({
+                where: { id: participant.id },
+                data: { vdotPredictedSecs },
+              });
+              hasVdot = true;
+              break;
+            }
+          } catch { /* retry */ }
+        }
+      }
+
+      // Always regenerate this runner's tip + fastest odds for the whole field
+      await updateRunnerTip(id, session.userId).catch(() => {});
+      await updateFastestOdds(id).catch(() => {});
+    })();
   }
 
   return NextResponse.json({ ok: true });
