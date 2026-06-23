@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
   if (!athleteId || !activityId) return NextResponse.json({ error: "Missing params" }, { status: 400 });
 
   try {
-    await processActivityForUser(athleteId, Number(activityId));
-    return NextResponse.json({ ok: true });
+    const result = await processActivityForUser(athleteId, Number(activityId));
+    return NextResponse.json({ ok: true, result });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

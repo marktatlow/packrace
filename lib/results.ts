@@ -38,10 +38,10 @@ function fastestSegment(
 export async function processActivityForUser(
   stravaAthleteId: string,
   stravaActivityId: number
-): Promise<void> {
+): Promise<string> {
   // Find our user by Strava athlete ID
   const user = await prisma.user.findUnique({ where: { stravaId: stravaAthleteId } });
-  if (!user) return;
+  if (!user) return `no user for stravaId=${stravaAthleteId}`;
 
   const now = new Date();
 
@@ -54,7 +54,7 @@ export async function processActivityForUser(
     include: { event: true },
   });
 
-  if (participants.length === 0) return;
+  if (participants.length === 0) return `no active windows for user=${user.id} at ${now.toISOString()}`;
 
   const accessToken = await refreshTokenIfNeeded(user.id);
 
@@ -62,10 +62,10 @@ export async function processActivityForUser(
   const res = await fetch(`${STRAVA_API}/activities/${stravaActivityId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) return;
+  if (!res.ok) return `strava activity fetch failed: ${res.status}`;
   const activity = await res.json();
 
-  if (!RUN_TYPES.includes(activity.sport_type ?? activity.type)) return;
+  if (!RUN_TYPES.includes(activity.sport_type ?? activity.type)) return `not a run: ${activity.sport_type ?? activity.type}`;
 
   const activityDate = new Date(activity.start_date);
 
@@ -73,29 +73,38 @@ export async function processActivityForUser(
     const targetMeters = participant.event.distanceKm * 1000;
 
     // Check activity is within this event's window
-    if (activityDate < participant.event.windowStart || activityDate > participant.event.windowEnd) continue;
+    if (activityDate < participant.event.windowStart || activityDate > participant.event.windowEnd) {
+      console.log(`Activity date ${activityDate.toISOString()} outside window ${participant.event.windowStart.toISOString()} - ${participant.event.windowEnd.toISOString()}`);
+      continue;
+    }
     // Check distance is close enough
-    if (activity.distance < targetMeters * 0.96) continue;
+    if (activity.distance < targetMeters * 0.96) {
+      console.log(`Activity distance ${activity.distance}m too short for target ${targetMeters}m`);
+      continue;
+    }
 
     let bestSecs: number | null = null;
     let bestActivityId: bigint | null = BigInt(stravaActivityId);
 
     if (activity.distance <= targetMeters * 1.04) {
-      // Within ±4% — use moving time directly
       bestSecs = activity.moving_time;
+      console.log(`Using moving_time directly: ${bestSecs}s`);
     } else {
-      // Longer run — fetch streams and find fastest segment
+      console.log(`Fetching streams for ${stravaActivityId}...`);
       const streamsRes = await fetch(
         `${STRAVA_API}/activities/${stravaActivityId}/streams?keys=distance,time&key_by_type=true`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const streams = await streamsRes.json();
+      console.log(`Streams status: ${streamsRes.status}, has data: ${!!streams?.distance?.data}`);
       if (streams?.distance?.data && streams?.time?.data) {
         bestSecs = fastestSegment(streams.distance.data, streams.time.data, targetMeters);
+        console.log(`fastestSegment result: ${bestSecs}s`);
       }
     }
 
     if (bestSecs !== null) {
+      console.log(`Writing result: ${bestSecs}s for participant ${participant.id}`);
       await prisma.eventParticipant.update({
         where: { id: participant.id },
         data: {
@@ -104,9 +113,12 @@ export async function processActivityForUser(
           resultFetchedAt: new Date(),
         },
       });
-      console.log(`Webhook: updated result for ${user.firstName} in event ${participant.event.name} — ${bestSecs}s`);
+      console.log(`✓ Updated result for ${user.firstName} in ${participant.event.name}: ${bestSecs}s`);
+    } else {
+      console.log(`bestSecs is null — no update made`);
     }
   }
+  return `done`;
 }
 
 export async function fetchResultsForEvent(eventId: string, isLive = false) {
