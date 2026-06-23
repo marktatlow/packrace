@@ -3,7 +3,7 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshTokenIfNeeded } from "@/lib/strava";
 import { syncAndComputeVdot, computeVdotFromDb } from "@/lib/bestEfforts";
-import { updateRunnerTip, updateRaceIntro, updateFastestOdds } from "@/lib/racecard";
+import { updateRunnerTip, updateRaceIntro, updateAllOdds } from "@/lib/racecard";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await updateRunnerTip(event.id, session.userId).catch(() => {});
 
     // 3. Update fastest-runner odds for whole field
-    await updateFastestOdds(event.id).catch(() => {});
+    await updateAllOdds(event.id).catch(() => {});
 
     // 4. Update race intro
     await updateRaceIntro(event.id, "pre-race").catch(() => {});

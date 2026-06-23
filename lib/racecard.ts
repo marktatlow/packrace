@@ -8,10 +8,12 @@ export type TipsterEntry = {
   name: string;
   label: "SHARP" | "DARK HORSE" | "SANDBAGGING" | "PAP" | null;
   tip: string;
-  odds?: string;         // beat-estimate odds e.g. "4/1 against", "Evens", "2/1 on"
-  oddsNote?: string;     // one-liner rationale for beat-estimate odds
-  fastestOdds?: string;  // odds of being fastest runner in the event
+  odds?: string;             // beat-estimate odds e.g. "4/1 against", "Evens", "2/1 on"
+  oddsNote?: string;
+  fastestOdds?: string;      // odds of being fastest runner
   fastestOddsNote?: string;
+  sandbagOdds?: string;      // odds of being biggest sandbagger
+  sandbagOddsNote?: string;
   postRaceVerdict?: string;
 };
 
@@ -259,16 +261,17 @@ Respond ONLY with valid JSON:
   await saveCard(eventId, card);
 }
 
-// ─── UPDATE FASTEST-RUNNER ODDS FOR ALL RUNNERS ──────────────────────────────
-// Needs all runners in one prompt to compare them against each other.
-// Called whenever the field changes (new join). Locks at event start.
-export async function updateFastestOdds(eventId: string): Promise<void> {
+// ─── UPDATE ALL THREE ODDS MARKETS IN ONE PROMPT ─────────────────────────────
+// Compares ALL runners together so implied probabilities balance (~110-120% book).
+// Generates: fastest runner, beat estimate, biggest sandbagger.
+// Called on every join and prediction change. Locks at event start.
+export async function updateAllOdds(eventId: string): Promise<void> {
   const participants = await prisma.eventParticipant.findMany({
     where: { eventId, predictedTimeSecs: { not: null } },
     include: { user: true },
-    orderBy: { vdotPredictedSecs: "asc" }, // fastest estimate first
+    orderBy: { vdotPredictedSecs: "asc" },
   });
-  if (participants.length < 2) return; // need at least 2 to compare
+  if (participants.length < 2) return;
 
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return;
@@ -276,44 +279,81 @@ export async function updateFastestOdds(eventId: string): Promise<void> {
   const runnerLines = participants.map((p) => {
     const pred = formatTime(p.predictedTimeSecs!);
     const est = p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "unknown";
-    return `- ${p.user.firstName}: prediction ${pred} | my estimate ${est}`;
+    const gap = p.vdotPredictedSecs
+      ? p.predictedTimeSecs! > p.vdotPredictedSecs
+        ? `prediction significantly slower than my analysis — sandbagging signal`
+        : p.predictedTimeSecs! < p.vdotPredictedSecs
+        ? `prediction faster than my analysis — overconfident signal`
+        : `prediction matches my analysis`
+      : `no estimate available`;
+    return `- ${p.user.firstName}: prediction ${pred} | my analysis: ${est} | ${gap}`;
   }).join("\n");
 
   const prompt = `${VOICE}
 
-You are setting the market for a ${event.distanceKm}km race. Here is the full field with predictions and your performance estimates:
+You are the bookmaker for a ${event.distanceKm}km race. Set three markets for the full field below. Odds must form a proper book — implied probabilities should total ~110–120% per market (like a real bookmaker's overround). Use UK fractional odds. Give a savage one-liner rationale per runner per market (max 12 words, no exact times or numbers).
 
+The field:
 ${runnerLines}
 
-For EACH runner, give UK betting odds on them being the FASTEST finisher overall. Use my estimates as the primary guide — a faster estimate = shorter odds. Also factor in predictions (a big sandbagger might have hidden pace). Odds should add up roughly across the field. Give a savage one-liner rationale for each (max 12 words).
+Set ALL THREE markets for ALL runners:
 
-Respond ONLY with valid JSON array:
-[
-  { "name": "FirstName", "fastestOdds": "X/Y against|on|Evens", "fastestOddsNote": "one-liner" }
-]`;
+MARKET 1 — Fastest Runner: who will record the quickest actual finish time? Primary guide: my analysis estimates. Shorter estimate = shorter odds. A big sandbagger may have hidden pace — factor that in.
+
+MARKET 2 — Beat the Estimate: who will run faster than my analysis suggests? If prediction is much slower than estimate (sandbagging) → short odds. If prediction is faster than estimate (overconfident) → long odds. If matched → near evens.
+
+MARKET 3 — Biggest Sandbagger: who has the biggest gap between their prediction and what my analysis says they can do? The one hiding the most pace should be the favourite.
+
+Respond ONLY with valid JSON:
+{
+  "fastest": [
+    { "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "savage rationale" }
+  ],
+  "beat": [
+    { "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "savage rationale" }
+  ],
+  "sandbag": [
+    { "name": "FirstName", "odds": "X/Y against|on|Evens", "note": "savage rationale" }
+  ]
+}`;
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5",
-    max_tokens: 400,
+    max_tokens: 700,
     messages: [{ role: "user", content: prompt }],
   });
 
   const text = response.content[0].type === "text" ? response.content[0].text : "";
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return;
-  const results: { name: string; fastestOdds: string; fastestOddsNote: string }[] = JSON.parse(jsonMatch[0]);
+
+  const markets: {
+    fastest: { name: string; odds: string; note: string }[];
+    beat:    { name: string; odds: string; note: string }[];
+    sandbag: { name: string; odds: string; note: string }[];
+  } = JSON.parse(jsonMatch[0]);
 
   const card = await loadCard(eventId) ?? { intro: "", tips: [] };
 
-  for (const r of results) {
-    const idx = card.tips.findIndex((t) => t.name === r.name);
-    if (idx >= 0) {
-      card.tips[idx].fastestOdds = r.fastestOdds;
-      card.tips[idx].fastestOddsNote = r.fastestOddsNote;
-    } else {
-      card.tips.push({ name: r.name, label: null, tip: "", fastestOdds: r.fastestOdds, fastestOddsNote: r.fastestOddsNote });
+  const mergeOdds = (
+    list: { name: string; odds: string; note: string }[],
+    oddsKey: "fastestOdds" | "odds" | "sandbagOdds",
+    noteKey: "fastestOddsNote" | "oddsNote" | "sandbagOddsNote",
+  ) => {
+    for (const r of list) {
+      const idx = card.tips.findIndex((t) => t.name === r.name);
+      if (idx >= 0) {
+        (card.tips[idx] as Record<string, unknown>)[oddsKey] = r.odds;
+        (card.tips[idx] as Record<string, unknown>)[noteKey] = r.note;
+      } else {
+        card.tips.push({ name: r.name, label: null, tip: "", [oddsKey]: r.odds, [noteKey]: r.note });
+      }
     }
-  }
+  };
+
+  mergeOdds(markets.fastest ?? [], "fastestOdds", "fastestOddsNote");
+  mergeOdds(markets.beat    ?? [], "odds",         "oddsNote");
+  mergeOdds(markets.sandbag ?? [], "sandbagOdds",  "sandbagOddsNote");
 
   await saveCard(eventId, card);
 }
@@ -339,9 +379,9 @@ export async function generateRaceCard(eventId: string): Promise<void> {
     await updateRunnerTip(eventId, p.userId).catch(() => {});
   }
 
-  // Update fastest-runner odds across the whole field
+  // Update all three odds markets across the whole field
   if (!windowEnded) {
-    await updateFastestOdds(eventId).catch(() => {});
+    await updateAllOdds(eventId).catch(() => {});
   }
 
   // Update the race intro with appropriate mode

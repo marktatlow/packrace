@@ -127,16 +127,11 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
             note: tip?.oddsNote ?? "—",
           };
         }
-        // sandbagger market — computed from prediction vs VDOT gap
-        const gapSecs = Math.max(0, sandbaggingGap);
-        // More gap = bigger sandbagger = shorter odds (more likely to sandbag)
-        // Scale: 120s gap → ~1/3, 0 gap → ~10/1
-        const num = gapSecs > 90 ? 1 : gapSecs > 60 ? 2 : gapSecs > 30 ? 4 : gapSecs > 10 ? 7 : 12;
-        const den = gapSecs > 90 ? 3 : 1;
+        // sandbagger market — from AI-generated odds
         return {
           name: p.firstName, trap,
-          o: [num, den] as [number, number],
-          note: gapSecs > 60 ? "Substantial gap. Suspicious." : gapSecs > 30 ? "Quiet sandbagger energy." : gapSecs > 10 ? "Modest padding." : "Probably honest.",
+          o: parseOdds(tip?.sandbagOdds),
+          note: tip?.sandbagOddsNote ?? "—",
         };
       })
       .sort((a, b) => decimalOdds(a.o) - decimalOdds(b.o));
