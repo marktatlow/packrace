@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Crown } from "lucide-react";
+import { ChevronDown, Crown, Lock } from "lucide-react";
 import { formatTime } from "@/lib/format";
 import type { ReactionsMap } from "./page";
 import CommentThread, { type CommentData } from "./CommentThread";
@@ -22,6 +22,8 @@ type Verdict = {
   name: string;
   label: string | null;
   tip: string;
+  odds?: string;
+  oddsNote?: string;
   postRaceVerdict?: string;
 } | undefined;
 
@@ -39,6 +41,7 @@ type Props = {
   onToggle: () => void;
   onReact: (emoji: string) => void;
   eventId: string;
+  windowStarted: boolean;
   windowEnded: boolean;
   currentUserId: string;
   comments: CommentData[];
@@ -47,15 +50,17 @@ type Props = {
 export default function RunnerCard({
   p, rank, isWinner, isMe, isFastest, isSandbagger, isPb,
   verdict, reactions, isExpanded, onToggle, onReact,
-  eventId, windowEnded, currentUserId, comments,
+  eventId, windowStarted, windowEnded, currentUserId, comments,
 }: Props) {
   const diffSecs = p.predictedTimeSecs && p.actualTimeSecs
     ? Math.abs(p.actualTimeSecs - p.predictedTimeSecs) : null;
 
-  const diffColor = diffSecs === null ? "text-gray-300"
+  const diffColor = diffSecs === null ? "text-white/30"
     : diffSecs <= 15 ? "text-[#39FF72]"
     : diffSecs <= 45 ? "text-[#FF6A3D]"
     : "text-red-500";
+
+  const oddsLocked = windowStarted || windowEnded;
 
   return (
     <div className={`bg-[#13151C] rounded-2xl border transition-all ${isExpanded ? "border-[#FF2D94] shadow-[0_0_20px_rgba(255,45,148,0.15)]" : "border-white/8"} overflow-hidden`}>
@@ -90,21 +95,24 @@ export default function RunnerCard({
 
       {isExpanded && (
         <div className="px-4 pb-4 border-t border-dashed border-white/10">
-          {/* Stat tiles */}
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            {[
-              { label: "My Prediction", value: p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : "—", accent: false },
-              { label: "Tips' Read", value: p.vdotPredictedSecs ? formatTime(p.vdotPredictedSecs) : "—", accent: true },
-              { label: "Result", value: p.actualTimeSecs ? formatTime(p.actualTimeSecs) : "—", accent: false },
-            ].map(({ label, value, accent }) => (
-              <div key={label} className="bg-[#1A1D26] rounded-xl p-2.5 text-center">
-                <p className="text-[9px] font-black text-white/65 uppercase tracking-wider mb-1">{label}</p>
-                <p className={`text-sm font-black tabular-nums ${accent ? "text-[#FF2D94]" : "text-[#F4F4F7]"}`}>{value}</p>
-              </div>
-            ))}
+
+          {/* Stat tiles — My Prediction + Result only */}
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="bg-[#1A1D26] rounded-xl p-2.5 text-center">
+              <p className="text-[9px] font-black text-white/65 uppercase tracking-wider mb-1">My Prediction</p>
+              <p className="text-sm font-black tabular-nums text-[#F4F4F7]">
+                {p.predictedTimeSecs ? formatTime(p.predictedTimeSecs) : "—"}
+              </p>
+            </div>
+            <div className="bg-[#1A1D26] rounded-xl p-2.5 text-center">
+              <p className="text-[9px] font-black text-white/65 uppercase tracking-wider mb-1">Result</p>
+              <p className="text-sm font-black tabular-nums text-[#F4F4F7]">
+                {p.actualTimeSecs ? formatTime(p.actualTimeSecs) : "—"}
+              </p>
+            </div>
           </div>
 
-          {/* Tips verdict */}
+          {/* Tips Verdict */}
           {verdict && (windowEnded && verdict.postRaceVerdict ? (
             <div className="mt-3 space-y-2">
               <div className="bg-[#1A1D26] border border-[#FF2D94]/20 rounded-xl p-3">
@@ -122,14 +130,42 @@ export default function RunnerCard({
               )}
             </div>
           ) : (
-            <div className="mt-3 bg-[#1A1D26] border border-[#FF2D94]/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#FF2D94]" />
-                <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider">Tips' Verdict</p>
+            verdict.tip ? (
+              <div className="mt-3 bg-[#1A1D26] border border-[#FF2D94]/20 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#FF2D94]" />
+                  <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider">Tips' Verdict</p>
+                </div>
+                <p className="text-sm text-[#F4F4F7] italic leading-relaxed">{verdict.tip}</p>
               </div>
-              <p className="text-sm text-[#F4F4F7] italic leading-relaxed">{verdict.tip}</p>
-            </div>
+            ) : null
           ))}
+
+          {/* Tips Odds — pre-race only, locks when event starts */}
+          {verdict && verdict.odds && !windowEnded && (
+            <div className={`mt-2 rounded-xl p-3 border ${oddsLocked ? "bg-[#0D0F14] border-white/10" : "bg-[#1A1D26] border-[#39FF72]/20"}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <img src="/tips-avatar.jpeg" alt="Tips" className="w-5 h-5 rounded-full object-cover border border-[#39FF72]" />
+                  <p className="text-[10px] font-black text-[#39FF72] uppercase tracking-wider">Tips Odds</p>
+                </div>
+                {oddsLocked && (
+                  <span className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
+                    <Lock size={10} /> Locked
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-white/65 italic leading-snug flex-1">{verdict.oddsNote}</p>
+                <span className={`text-lg font-black tabular-nums whitespace-nowrap ${oddsLocked ? "text-white/40" : "text-[#39FF72]"}`}>
+                  {verdict.odds}
+                </span>
+              </div>
+              {!oddsLocked && (
+                <p className="text-[10px] text-white/30 mt-1.5">Updates as runners join · locks at race start</p>
+              )}
+            </div>
+          )}
 
           {/* Reactions */}
           <ReactionBar reactions={reactions} onReact={onReact} />

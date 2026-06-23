@@ -8,6 +8,8 @@ export type TipsterEntry = {
   name: string;
   label: "SHARP" | "DARK HORSE" | "SANDBAGGING" | "PAP" | null;
   tip: string;
+  odds?: string;      // e.g. "4/1 against", "Evens", "2/1 on" — locked at event start
+  oddsNote?: string;  // one-liner rationale for the odds
   postRaceVerdict?: string;
 };
 
@@ -92,17 +94,19 @@ ${name} has entered the ${event.distanceKm}km event.
 - Their prediction: ${predTime}
 - My estimate: ${estTime ?? "unknown"}${estTime ? ` (${gapNote})` : ""}
 
-Write ONE pre-race comment for ${name} only. Compare their prediction to my estimate. Refer to your estimate as "my estimate" — never mention VDOT, algorithms, or Strava.
+Write ONE pre-race comment for ${name}. Compare their prediction to my estimate. Refer to your estimate as "my estimate" — never mention VDOT, algorithms, or Strava.
 
-Also assign a label:
+Assign a label:
 - SHARP: prediction closely matches my estimate
 - DARK HORSE: prediction slower than my estimate (hidden upside)
 - SANDBAGGING: prediction significantly slower than my estimate
 - PAP: prediction faster than my estimate (overconfident)
 - null: no estimate yet
 
+Also give Tips Odds — UK betting-style odds on whether ${name} will beat my estimate (run faster than ${estTime ?? "my estimate"}). Express as e.g. "4/1 against", "Evens", "2/1 on". Consider the gap between prediction and estimate. Add a savage one-liner rationale (max 15 words).
+
 Respond ONLY with valid JSON:
-{ "label": "LABEL_OR_NULL", "tip": "pre-race comment here" }`;
+{ "label": "LABEL_OR_NULL", "tip": "pre-race comment", "odds": "X/Y against|on|Evens", "oddsNote": "one-liner rationale" }`;
   }
 
   const response = await client.messages.create({
@@ -130,8 +134,16 @@ Respond ONLY with valid JSON:
     if (existingIdx >= 0) {
       card.tips[existingIdx].label = result.label ?? null;
       card.tips[existingIdx].tip = result.tip;
+      if (result.odds) card.tips[existingIdx].odds = result.odds;
+      if (result.oddsNote) card.tips[existingIdx].oddsNote = result.oddsNote;
     } else {
-      card.tips.push({ name, label: result.label ?? null, tip: result.tip });
+      card.tips.push({
+        name,
+        label: result.label ?? null,
+        tip: result.tip,
+        odds: result.odds,
+        oddsNote: result.oddsNote,
+      });
     }
   }
 

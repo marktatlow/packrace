@@ -486,6 +486,7 @@ export default function EventDetailClient({
                   onToggle={() => setExpandedCard(expandedCard === p.id ? null : p.id)}
                   onReact={(emoji) => handleReact("runner", p.id, emoji)}
                   eventId={event.id}
+                  windowStarted={windowStarted}
                   windowEnded={windowEnded}
                   currentUserId={currentUserId}
                   comments={initialComments[p.id] ?? []}
