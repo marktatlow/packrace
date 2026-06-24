@@ -158,6 +158,23 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
     weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London",
   });
 
+  const [shareLabel, setShareLabel] = useState<"Share the board" | "Link copied!">("Share the board");
+
+  async function shareBoard() {
+    const url = window.location.href;
+    const text = `Check out the RaceParty odds for ${eventName} — ${distanceKm}km · Predict. Race. Get Roasted.`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "RaceParty Odds", text, url });
+        return;
+      } catch { /* user cancelled */ }
+    }
+    // Fallback: copy to clipboard
+    await navigator.clipboard.writeText(url).catch(() => {});
+    setShareLabel("Link copied!");
+    setTimeout(() => setShareLabel("Share the board"), 2000);
+  }
+
   return (
     <div style={{ background: C.bg, borderRadius: 22, overflow: "hidden", border: `1px solid ${C.line}`, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}>
 
@@ -298,14 +315,14 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
 
       {/* Share + disclaimer */}
       <div style={{ padding: "12px 12px 14px" }}>
-        <button style={{
+        <button onClick={shareBoard} style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
           padding: "11px 0", borderRadius: 11, border: "none", cursor: "pointer",
           fontWeight: 800, fontSize: 13.5, color: "#fff",
           background: `linear-gradient(90deg, ${C.pink}, ${C.orange})`,
           boxShadow: `0 5px 20px rgba(255,45,148,.35)`,
         }}>
-          <Share2 size={15} /> Share the board
+          <Share2 size={15} /> {shareLabel}
         </button>
         <div style={{ textAlign: "center", fontSize: 10, color: C.dim, marginTop: 10, lineHeight: 1.5 }}>
           🎉 Bragging rights only · Clout has no cash value · Not gambling
