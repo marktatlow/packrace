@@ -463,6 +463,12 @@ export default function EventDetailClient({
               }
               <p className="text-xl font-black text-[#F4F4F7]">Predictions vs. Actual</p>
             </div>
+            {/* Strava attribution — required by Strava API Brand Guidelines */}
+            <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 opacity-50 hover:opacity-80 transition-opacity flex-shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+              <span className="text-[9px] font-bold text-white/50">Powered by Strava</span>
+            </a>
             {(windowStarted || windowEnded) && (
               <button onClick={fetchResults} disabled={fetchingResults}
                 className="text-xs text-[#FF2D94] font-bold disabled:opacity-40">
@@ -654,7 +660,7 @@ export default function EventDetailClient({
         {/* ══ SECTION 2b — BETTING BOARD ══ */}
         {commentary && commentary.tips.length > 0 && (
           <section>
-            <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-3">RaceParty Odds</p>
+            <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-3">RaceParty Picks</p>
             <BettingBoard
               eventName={event.name}
               distanceKm={event.distanceKm}

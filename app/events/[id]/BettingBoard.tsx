@@ -158,21 +158,21 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
     weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London",
   });
 
-  const [shareLabel, setShareLabel] = useState<"Share the board" | "Link copied!">("Share the board");
+  const [shareLabel, setShareLabel] = useState<"Share predictions" | "Link copied!">("Share predictions");
 
   async function shareBoard() {
     const url = window.location.href;
-    const text = `Check out the RaceParty odds for ${eventName} — ${distanceKm}km · Predict. Race. Get Roasted.`;
+    const text = `Check out the RaceParty predictions for ${eventName} — ${distanceKm}km · Predict. Race. Get Roasted.`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "RaceParty Odds", text, url });
+        await navigator.share({ title: "RaceParty Picks", text, url });
         return;
       } catch { /* user cancelled */ }
     }
     // Fallback: copy to clipboard
     await navigator.clipboard.writeText(url).catch(() => {});
     setShareLabel("Link copied!");
-    setTimeout(() => setShareLabel("Share the board"), 2000);
+    setTimeout(() => setShareLabel("Share predictions"), 2000);
   }
 
   return (
@@ -184,7 +184,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ fontWeight: 900, fontSize: 20, color: C.text }}>Race</span>
             <span style={{ fontWeight: 900, fontSize: 20, color: C.pink, textShadow: `0 0 16px ${C.pink}` }}>Party</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: C.dim, letterSpacing: 2, marginLeft: 3, alignSelf: "flex-start", marginTop: 2 }}>ODDS</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: C.dim, letterSpacing: 2, marginLeft: 3, alignSelf: "flex-start", marginTop: 2 }}>PICKS</span>
           </div>
           {oddsLocked ? (
             <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 800, color: C.dim, border: `1px solid ${C.line}`, padding: "4px 8px", borderRadius: 999 }}>
@@ -192,7 +192,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
             </span>
           ) : (
             <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 800, color: C.green, border: `1px solid ${C.green}`, padding: "4px 8px", borderRadius: 999, textShadow: `0 0 8px ${C.green}` }}>
-              <span style={{ width: 6, height: 6, borderRadius: 99, background: C.green, boxShadow: `0 0 8px ${C.green}` }} /> BOARD OPEN
+              <span style={{ width: 6, height: 6, borderRadius: 99, background: C.green, boxShadow: `0 0 8px ${C.green}` }} /> LIVE
             </span>
           )}
         </div>
@@ -288,7 +288,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
         <div style={{ margin: "2px 10px 0", background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 12, padding: 12 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 800, fontSize: 12.5, color: C.text }}>
-              <Zap size={13} color={C.pink} /> Clout Slip · {slip.length}
+              <Zap size={13} color={C.pink} /> My Picks · {slip.length}
             </span>
             <button onClick={() => setSlip([])} style={{ fontSize: 11, color: C.dim, background: "none", border: "none", cursor: "pointer" }}>Clear</button>
           </div>
@@ -302,11 +302,11 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 9, paddingTop: 9, borderTop: `1px solid ${C.line}` }}>
             <div>
-              <div style={{ fontSize: 10, color: C.dim }}>Clout each</div>
+              <div style={{ fontSize: 10, color: C.dim }}>Points each</div>
               <div style={{ fontSize: 12, color: C.text }}>{STAKE} × {slip.length}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 10, color: C.dim }}>Clout to win</div>
+              <div style={{ fontSize: 10, color: C.dim }}>Points to win</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.green, textShadow: `0 0 12px ${C.green}`, fontVariantNumeric: "tabular-nums" }}>+{profit}</div>
             </div>
           </div>
@@ -325,7 +325,7 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
           <Share2 size={15} /> {shareLabel}
         </button>
         <div style={{ textAlign: "center", fontSize: 10, color: C.dim, marginTop: 10, lineHeight: 1.5 }}>
-          🎉 Bragging rights only · Clout has no cash value · Not gambling
+          🎉 For fun only · No real money involved
         </div>
       </div>
     </div>
