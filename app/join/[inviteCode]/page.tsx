@@ -20,7 +20,7 @@ export default async function JoinPage({ params }: { params: Promise<{ inviteCod
           </div>
           <a
             href={`${authUrl}&state=join:${inviteCode}`}
-            className="flex items-center justify-center gap-3 w-full bg-[#FF2D94] text-white font-black py-4 rounded-2xl shadow-[0_0_24px_rgba(255,45,148,0.4)]"
+            className="flex items-center justify-center gap-3 w-full bg-[#FC4C02] text-white font-black py-4 rounded-2xl shadow-[0_0_24px_rgba(252,76,2,0.4)]"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
             Connect with Strava
