@@ -76,6 +76,33 @@ export default async function RaceCardPage({ params }: { params: Promise<{ id: s
         </p>
       </div>
 
+      {/* ── CONDITIONS ── */}
+      {commentary?.conditions && commentary.conditions.length > 0 && (
+        <div className="bg-[#12151D] rounded-[28px] p-4 mb-6 relative shadow-[0_6px_0_rgba(0,0,0,0.25)]">
+          <div className="flex items-center gap-2 mb-3">
+            <CloudSun size={16} className="text-[#00B7FF]" />
+            <p className="text-[11px] font-black uppercase tracking-widest text-[#00B7FF]">Conditions on the Day</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {commentary.conditions.map((c) => (
+              <div key={c.city} className="bg-white/5 rounded-2xl px-3 py-2.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">{c.icon}</span>
+                  <p className="text-white/80 font-bold text-sm truncate">{c.city}</p>
+                </div>
+                <p className="text-white/40 text-[10px] mt-0.5">{c.tempC.toFixed(0)}°C · {c.humidityPct.toFixed(0)}% hum</p>
+                <p className={`font-black text-sm tabular-nums mt-0.5 ${c.adjustmentPct > 3 ? "text-[#FF6A3D]" : "text-[#39FF72]"}`}>
+                  +{c.adjustmentPct.toFixed(1)}%
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-white/30 mt-3 leading-relaxed">
+            Rough heat/humidity estimate only — not applied to predictions.
+          </p>
+        </div>
+      )}
+
       {/* ── BODY: divisions (left) + sidebar (right) ── */}
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1 min-w-0">
@@ -183,35 +210,8 @@ export default async function RaceCardPage({ params }: { params: Promise<{ id: s
       )}
 
         </div>
-        {/* ── SIDEBAR: conditions + Tips' briefing ── */}
+        {/* ── SIDEBAR: Tips' briefing ── */}
         <div className="lg:w-[300px] lg:shrink-0">
-          {/* ── CONDITIONS ── */}
-          {commentary?.conditions && commentary.conditions.length > 0 && (
-            <div className="bg-[#12151D] rounded-[28px] p-4 mb-6 relative shadow-[0_6px_0_rgba(0,0,0,0.25)]">
-              <div className="flex items-center gap-2 mb-3">
-                <CloudSun size={16} className="text-[#00B7FF]" />
-                <p className="text-[11px] font-black uppercase tracking-widest text-[#00B7FF]">Conditions on the Day</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                {commentary.conditions.map((c) => (
-                  <div key={c.city} className="bg-white/5 rounded-2xl px-3 py-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-base">{c.icon}</span>
-                      <p className="text-white/80 font-bold text-sm truncate">{c.city}</p>
-                    </div>
-                    <p className="text-white/40 text-[10px] mt-0.5">{c.tempC.toFixed(0)}°C · {c.humidityPct.toFixed(0)}% hum</p>
-                    <p className={`font-black text-sm tabular-nums mt-0.5 ${c.adjustmentPct > 3 ? "text-[#FF6A3D]" : "text-[#39FF72]"}`}>
-                      +{c.adjustmentPct.toFixed(1)}%
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[9px] text-white/30 mt-3 leading-relaxed">
-                Rough heat/humidity estimate only — not applied to predictions.
-              </p>
-            </div>
-          )}
-
           {/* ── TIPS' BRIEFING — comic-style speech bubble ── */}
           {briefing && (
             <div className="relative mt-4 mb-2">
