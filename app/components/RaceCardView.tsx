@@ -20,9 +20,15 @@ type Props = {
   participants: RaceCardParticipant[];
   commentary: RaceCardCommentary | null;
   generatedAt?: string | Date | null;
+  // When embedded in a narrow, width-constrained parent (e.g. the event page,
+  // capped at max-w-[430px]), the 2-column lg: layout must be disabled —
+  // lg: is a VIEWPORT breakpoint, so on a full-width desktop it still fires
+  // even though the actual available width is only ~400px, squashing the
+  // sidebar into the main column. Standalone /race-card/[id] has no such cap.
+  embedded?: boolean;
 };
 
-export default function RaceCardView({ event, participants, commentary, generatedAt }: Props) {
+export default function RaceCardView({ event, participants, commentary, generatedAt, embedded = false }: Props) {
   const eventDate = new Date(event.date);
   const byName = new Map(participants.map((p) => [p.firstName, p]));
   const tipByName = new Map((commentary?.tips ?? []).map((t) => [t.name, t]));
@@ -78,7 +84,7 @@ export default function RaceCardView({ event, participants, commentary, generate
             <CloudSun size={16} className="text-[#00B7FF]" />
             <p className="text-[11px] font-black uppercase tracking-widest text-[#00B7FF]">Conditions on the Day</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className={`grid grid-cols-2 gap-2.5 ${embedded ? "" : "sm:grid-cols-4"}`}>
             {commentary.conditions.map((c) => (
               <div key={c.city} className="bg-white/5 rounded-2xl px-3 py-2.5">
                 <div className="flex items-center gap-1.5">
@@ -99,7 +105,7 @@ export default function RaceCardView({ event, participants, commentary, generate
       )}
 
       {/* ── BODY: divisions (left) + sidebar (right) ── */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className={`flex flex-col gap-6 ${embedded ? "" : "lg:flex-row"}`}>
         <div className="flex-1 min-w-0">
           {/* ── DIVISIONS ── */}
           {tiers.length > 0 ? (
@@ -132,7 +138,7 @@ export default function RaceCardView({ event, participants, commentary, generate
                     </div>
 
                     {/* Runners — grid of compact chips */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 px-4 py-4">
+                    <div className={`grid grid-cols-2 gap-3 px-4 py-4 ${embedded ? "" : "sm:grid-cols-3"}`}>
                       {tier.runnerNames.map((name) => {
                         const p = byName.get(name);
                         if (!p) return null;
@@ -205,7 +211,7 @@ export default function RaceCardView({ event, participants, commentary, generate
           )}
         </div>
         {/* ── SIDEBAR: Tips' briefing ── */}
-        <div className="lg:w-[300px] lg:shrink-0">
+        <div className={embedded ? "" : "lg:w-[300px] lg:shrink-0"}>
           {/* ── TIPS' BRIEFING — comic-style speech bubble ── */}
           {briefing && (
             <div className="relative mt-4 mb-2">

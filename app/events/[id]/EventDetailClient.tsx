@@ -338,6 +338,11 @@ export default function EventDetailClient({
 
       <div className="px-4 py-5 space-y-6">
 
+        {/* ══ VALUE PROP ══ */}
+        <p className="text-center text-xs text-white/50 italic -mt-2">
+          Predict your time, beat your mates, get roasted by Tips.
+        </p>
+
         {/* ══ SECTION 1 — YOUR PREDICTION ══ */}
         <PredictionCard
           joined={joined}
@@ -388,6 +393,7 @@ export default function EventDetailClient({
                   participants={localParticipants}
                   commentary={commentary}
                   generatedAt={raceCard?.generatedAt}
+                  embedded
                 />
               </div>
             )}
