@@ -357,7 +357,7 @@ export default function EventDetailClient({
               className="w-full flex items-center justify-between bg-[#12151D] border border-white/10 rounded-2xl px-4 py-3.5"
             >
               <div className="flex items-center gap-2.5">
-                <img src="/tips_commentator.png" alt="Tips" className="w-10 h-10 object-contain object-bottom shrink-0" />
+                <img src="/tips_commentator.png" alt="Tips" className="w-20 h-20 object-contain object-bottom shrink-0" />
                 <p
                   className="text-2xl font-black uppercase tracking-tight"
                   style={{
