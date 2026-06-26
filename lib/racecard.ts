@@ -232,8 +232,16 @@ export async function updateRaceIntro(
     .join("; ");
 
   const conditionsContext = (locationLines || conditionsLines)
-    ? `\n\nLocations: ${locationLines || "unknown"}${conditionsLines ? `\nConditions on the day: ${conditionsLines}` : ""}\nWeave the geography and conditions into your commentary where it's fun or relevant — e.g. who's got it easy, who's facing a tougher environment. Coarse city-level only, no exact temperatures or numbers.`
+    ? `\n\nLocations: ${locationLines || "unknown"}${conditionsLines ? `\nConditions on the day: ${conditionsLines}` : ""}\nYou MUST explicitly reference the geography and conditions, and say something about how the conditions could realistically affect THIS race (e.g. heat sapping the front-runners, cold making for a brutal start, easy conditions removing any excuse). Coarse city-level only, no exact temperatures or numbers.`
     : "";
+
+  const numAthletes = event.participants.length;
+  const numLocations = new Set(cityByName.values()).size;
+  const showbizOpen = numLocations > 1
+    ? `Open like a hyped-up sports announcer setting the scene — something in the spirit of "We've got ${numAthletes} athletes lining up for a ${event.distanceKm}km race, and this one looks like an absolute humdinger" — mention the global spread (athletes competing from ${numLocations} different cities/regions) as part of the spectacle. Showbiz energy for this opening line, THEN drop into your usual dry, savage voice for the rest.`
+    : `Open like a hyped-up sports announcer setting the scene — something in the spirit of "We've got ${numAthletes} athletes lining up for a ${event.distanceKm}km race, and this one looks like an absolute humdinger." Showbiz energy for this opening line, THEN drop into your usual dry, savage voice for the rest.`;
+
+  const comparisonInstruction = `You MUST reference specific runners by comparing BOTH their predicted time AND my estimate (VDOT) — e.g. who's predicted something wildly different from what the data says they're capable of, and who's bang on. Don't just list times; use the gap between prediction and estimate as the story.`;
 
   let prompt: string;
 
@@ -243,7 +251,7 @@ export async function updateRaceIntro(
 The ${event.distanceKm}km race is over. Final results:
 ${runnerLines}${conditionsContext}
 
-Write a 2-3 sentence overall closing race summary — who was the star, the biggest surprise, the biggest disappointment. Savage but fair. If conditions were notably tough or easy somewhere, you can use that as part of the story (e.g. an excuse that doesn't hold up, or a genuine advantage).
+Write a 2-3 sentence overall closing race summary — who was the star, the biggest surprise, the biggest disappointment. Savage but fair. ${comparisonInstruction} If conditions were notably tough or easy somewhere, you can use that as part of the story (e.g. an excuse that doesn't hold up, or a genuine advantage).
 
 Respond ONLY with valid JSON:
 { "postRaceIntro": "closing summary here" }`;
@@ -255,7 +263,7 @@ Race day is HERE. ${event.distanceKm}km. The window opens soon.
 The field:
 ${runnerLines}${conditionsContext}
 
-Write a 2-sentence race-day intro — full of anticipation, tension, and dry sarcasm. Get them hyped.
+Write a 3-sentence race-day intro full of anticipation and tension. ${showbizOpen} ${comparisonInstruction}
 
 Respond ONLY with valid JSON:
 { "intro": "race day intro here" }`;
@@ -274,7 +282,7 @@ Pre-race briefing for the ${event.distanceKm}km event on ${new Date(event.date).
 The field so far:
 ${runnerLines}${changeCallout}${conditionsContext}
 
-Write a 2-sentence intro that sets the scene for this race.${change ? ` One sentence MUST reference ${change.name}'s prediction change.` : ""}
+Write a 3-sentence intro that sets the scene for this race. ${showbizOpen} ${comparisonInstruction}${change ? ` One sentence MUST reference ${change.name}'s prediction change.` : ""}
 
 Respond ONLY with valid JSON:
 { "intro": "pre-race intro here" }`;
