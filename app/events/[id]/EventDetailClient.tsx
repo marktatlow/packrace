@@ -12,7 +12,7 @@ import PredictionCard from "./PredictionCard";
 import ResultsSection from "./ResultsSection";
 import TipsSection from "./TipsSection";
 import RaceCardView from "@/app/components/RaceCardView";
-import { Share2 } from "lucide-react";
+import { Share2, ChevronDown } from "lucide-react";
 
 type Participant = {
   id: string;
@@ -66,6 +66,7 @@ export default function EventDetailClient({
   const [joined, setJoined] = useState(isParticipant);
   const [showWaiver, setShowWaiver] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [showRaceCard, setShowRaceCard] = useState(false);
   const [reactions, setReactions] = useState<ReactionsMap>(initialReactions);
   const predictInput = useRef<HTMLInputElement>(null);
 
@@ -351,19 +352,39 @@ export default function EventDetailClient({
         {/* ══ SECTION 1b — RACE CARD (visible once predictions are locked) ══ */}
         {windowStarted && commentary && (
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">🔒 Predictions Locked</p>
-              <button onClick={copyRaceCard}
-                className="flex items-center gap-1.5 bg-[#FF2D94] text-white text-xs font-black px-3 py-1.5 rounded-full shadow-sm">
-                <Share2 size={12} /> {cardCopied ? "Copied!" : "Share Race Card"}
-              </button>
-            </div>
-            <RaceCardView
-              event={{ name: event.name, distanceKm: event.distanceKm, date: event.date, location: event.location }}
-              participants={localParticipants}
-              commentary={commentary}
-              generatedAt={raceCard?.generatedAt}
-            />
+            <button
+              onClick={() => setShowRaceCard((s) => !s)}
+              className="w-full flex items-center justify-between bg-[#12151D] border border-white/10 rounded-2xl px-4 py-3.5"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">🔒</span>
+                <div className="text-left">
+                  <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Predictions Locked</p>
+                  <p className="text-sm font-bold text-[#F4F4F7]">Race Card</p>
+                </div>
+              </div>
+              <ChevronDown
+                size={18}
+                className={`text-white/50 transition-transform ${showRaceCard ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {showRaceCard && (
+              <div className="mt-3">
+                <div className="flex justify-end mb-3">
+                  <button onClick={(e) => { e.stopPropagation(); copyRaceCard(); }}
+                    className="flex items-center gap-1.5 bg-[#FF2D94] text-white text-xs font-black px-3 py-1.5 rounded-full shadow-sm">
+                    <Share2 size={12} /> {cardCopied ? "Copied!" : "Share Race Card"}
+                  </button>
+                </div>
+                <RaceCardView
+                  event={{ name: event.name, distanceKm: event.distanceKm, date: event.date, location: event.location }}
+                  participants={localParticipants}
+                  commentary={commentary}
+                  generatedAt={raceCard?.generatedAt}
+                />
+              </div>
+            )}
           </section>
         )}
 
