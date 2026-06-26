@@ -11,6 +11,8 @@ import RaceReplay from "./RaceReplay";
 import PredictionCard from "./PredictionCard";
 import ResultsSection from "./ResultsSection";
 import TipsSection from "./TipsSection";
+import RaceCardView from "@/app/components/RaceCardView";
+import { Share2 } from "lucide-react";
 
 type Participant = {
   id: string;
@@ -345,6 +347,25 @@ export default function EventDetailClient({
           predictInput={predictInput}
           onSave={savePrediction}
         />
+
+        {/* ══ SECTION 1b — RACE CARD (visible once predictions are locked) ══ */}
+        {windowStarted && commentary && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">🔒 Predictions Locked</p>
+              <button onClick={copyRaceCard}
+                className="flex items-center gap-1.5 bg-[#FF2D94] text-white text-xs font-black px-3 py-1.5 rounded-full shadow-sm">
+                <Share2 size={12} /> {cardCopied ? "Copied!" : "Share Race Card"}
+              </button>
+            </div>
+            <RaceCardView
+              event={{ name: event.name, distanceKm: event.distanceKm, date: event.date, location: event.location }}
+              participants={localParticipants}
+              commentary={commentary}
+              generatedAt={raceCard?.generatedAt}
+            />
+          </section>
+        )}
 
         {/* ══ SECTION 2 — RESULTS ══ */}
         <ResultsSection
