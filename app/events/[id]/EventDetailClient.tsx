@@ -356,16 +356,22 @@ export default function EventDetailClient({
               onClick={() => setShowRaceCard((s) => !s)}
               className="w-full flex items-center justify-between bg-[#12151D] border border-white/10 rounded-2xl px-4 py-3.5"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-base">🔒</span>
-                <div className="text-left">
-                  <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Predictions Locked</p>
-                  <p className="text-sm font-bold text-[#F4F4F7]">Race Card</p>
-                </div>
+              <div className="flex items-center gap-2.5">
+                <img src="/tips_commentator.png" alt="Tips" className="w-10 h-10 object-contain object-bottom shrink-0" />
+                <p
+                  className="text-2xl font-black uppercase tracking-tight"
+                  style={{
+                    color: "#00B7FF",
+                    textShadow: "0 0 10px rgba(0,183,255,0.85), 0 0 24px rgba(0,183,255,0.5)",
+                    WebkitTextStroke: "0.5px rgba(0,183,255,0.5)",
+                  }}
+                >
+                  Race Card
+                </p>
               </div>
               <ChevronDown
                 size={18}
-                className={`text-white/50 transition-transform ${showRaceCard ? "rotate-180" : ""}`}
+                className={`text-white/50 transition-transform shrink-0 ${showRaceCard ? "rotate-180" : ""}`}
               />
             </button>
 
