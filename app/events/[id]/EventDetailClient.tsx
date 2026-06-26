@@ -1,14 +1,16 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { formatTime, formatWindow, formatBST } from "@/lib/format";
+import { formatWindow } from "@/lib/format";
 import type { RaceCardCommentary } from "@/lib/racecard";
 import WaiverModal from "@/app/components/WaiverModal";
-import RunnerCard, { ReactionBar } from "./RunnerCard";
 import type { ReactionsMap, CommentsMap } from "./page";
 import CommentThread from "./CommentThread";
 import BettingBoard from "./BettingBoard";
 import RaceReplay from "./RaceReplay";
+import PredictionCard from "./PredictionCard";
+import ResultsSection from "./ResultsSection";
+import TipsSection from "./TipsSection";
 
 type Participant = {
   id: string;
@@ -23,15 +25,6 @@ type Participant = {
   resultFetchedAt: string | null;
   streamDistance: number[] | null;
   streamTime: number[] | null;
-};
-
-type SortKey = "predicted" | "actual" | "diff";
-
-const labelStyles: Record<string, { bg: string; text: string; emoji: string }> = {
-  SHARP:        { bg: "bg-[#39FF72]/10",  text: "text-[#39FF72]",  emoji: "⚡" },
-  "DARK HORSE": { bg: "bg-[#00B7FF]/10",  text: "text-[#00B7FF]",  emoji: "🐴" },
-  SANDBAGGING:  { bg: "bg-[#FF6A3D]/10",  text: "text-[#FF6A3D]",  emoji: "🎭" },
-  PAP:          { bg: "bg-[#FF2D94]/10",  text: "text-[#FF2D94]",  emoji: "💩" },
 };
 
 type Props = {
@@ -60,7 +53,6 @@ export default function EventDetailClient({
 }: Props) {
   const [raceCard, setRaceCard] = useState(initialRaceCard);
   const commentary: RaceCardCommentary | null = raceCard ? JSON.parse(raceCard.commentary) : null;
-  const [sort, setSort] = useState<SortKey>("diff");
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -278,66 +270,6 @@ export default function EventDetailClient({
     setFetchingResults(false);
   }
 
-  // Sort participants
-  const sorted = [...localParticipants].sort((a, b) => {
-    if (!windowStarted) {
-      // Pre-event: sort by user's own predicted time (fastest first)
-      if (!a.predictedTimeSecs) return 1;
-      if (!b.predictedTimeSecs) return -1;
-      return a.predictedTimeSecs - b.predictedTimeSecs;
-    }
-
-    // During/after event: sort by who beat estimate by most (highest positive margin first)
-    // Athletes with results rank above those still running
-    const aMargin = a.vdotPredictedSecs && a.actualTimeSecs
-      ? a.vdotPredictedSecs - a.actualTimeSecs  // positive = beat estimate
-      : a.actualTimeSecs ? -Infinity             // has result but no estimate → bottom of results
-      : null;                                    // no result yet → after all finishers
-    const bMargin = b.vdotPredictedSecs && b.actualTimeSecs
-      ? b.vdotPredictedSecs - b.actualTimeSecs
-      : b.actualTimeSecs ? -Infinity
-      : null;
-
-    if (aMargin !== null && bMargin !== null) return bMargin - aMargin; // both have results
-    if (aMargin !== null) return -1; // a finished, b hasn't
-    if (bMargin !== null) return 1;  // b finished, a hasn't
-
-    // Neither has finished — sort by VDOT estimate
-    const aEst = a.vdotPredictedSecs ?? a.predictedTimeSecs ?? Infinity;
-    const bEst = b.vdotPredictedSecs ?? b.predictedTimeSecs ?? Infinity;
-    return aEst - bEst;
-  });
-
-  // Badges
-  const withResults = sorted.filter((p) => p.predictedTimeSecs && p.actualTimeSecs);
-  // Winner = beat Tips' estimate by the most — must have run FASTER than estimate (positive margin only)
-  const winner = withResults.length > 0
-    ? withResults
-        .filter((p) => p.vdotPredictedSecs != null && p.actualTimeSecs! < p.vdotPredictedSecs)
-        .sort((a, b) => (b.vdotPredictedSecs! - b.actualTimeSecs!) - (a.vdotPredictedSecs! - a.actualTimeSecs!))[0]
-        ?? null // no winner if nobody beat their estimate
-    : null;
-  const fastest = withResults.length > 0
-    ? withResults.reduce((best, p) => p.actualTimeSecs! < best.actualTimeSecs! ? p : best, withResults[0])
-    : null;
-  // Dark horse: beat Tips' estimate by the most (vdotPredictedSecs - actualTimeSecs, highest positive margin)
-  const darkHorse = withResults.length > 0
-    ? withResults
-        .filter((p) => p.vdotPredictedSecs && p.actualTimeSecs! < p.vdotPredictedSecs)
-        .sort((a, b) => (b.vdotPredictedSecs! - b.actualTimeSecs!) - (a.vdotPredictedSecs! - a.actualTimeSecs!))[0] ?? null
-    : null;
-  const sandbagger = withResults.length > 1
-    ? withResults.reduce((worst, p) => {
-        const gap = p.actualTimeSecs! - p.predictedTimeSecs!;
-        const worstGap = worst.actualTimeSecs! - worst.predictedTimeSecs!;
-        return gap > worstGap ? p : worst;
-      }, withResults[0])
-    : null;
-  const pbAlert = withResults.find(
-    (p) => p.personalBestSecs && p.actualTimeSecs && p.actualTimeSecs < p.personalBestSecs
-  ) ?? null;
-
-
   return (
     <main className="min-h-screen bg-[#0B0D12] max-w-[430px] mx-auto pb-16">
 
@@ -404,258 +336,32 @@ export default function EventDetailClient({
       <div className="px-4 py-5 space-y-6">
 
         {/* ══ SECTION 1 — YOUR PREDICTION ══ */}
-        {joined && (
-          <section>
-            <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-2">Your Prediction</p>
-            <div className={`bg-[#12151D] rounded-2xl shadow-sm overflow-hidden border ${!windowStarted ? "border-[#FF2D94]" : "border-white/10"}`}>
-              {!windowStarted && <div className="h-1 bg-[#FF2D94]" />}
-              {windowStarted && !windowEnded && <div className="h-1 bg-[#39FF72]" />}
-              {windowEnded && <div className="h-1 bg-white/10" />}
-              <div className="p-4">
-                {me?.predictedTimeSecs ? (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-4xl font-black text-[#F4F4F7] tabular-nums">{formatTime(me.predictedTimeSecs)}</p>
-                    </div>
-                    {!windowStarted && (
-                      <button onClick={() => predictInput.current?.focus()}
-                        className="text-xs text-[#FF2D94] border border-[#FF2D94] px-3 py-1.5 rounded-lg font-semibold">
-                        Edit
-                      </button>
-                    )}
-                    {windowStarted && !windowEnded && (
-                      <span className="text-xs text-[#FF6A3D] font-black bg-[#FF6A3D]/10 px-3 py-1.5 rounded-lg">🔒 Locked</span>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-white/65 text-sm">No prediction yet — enter one below</p>
-                )}
-                {!windowStarted && (
-                  <div className="mt-3 flex gap-2">
-                    <input ref={predictInput} placeholder="mm:ss or h:mm:ss"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[#F4F4F7] text-sm focus:outline-none focus:border-[#FF2D94]" />
-                    <button onClick={savePrediction} disabled={saving}
-                      className="bg-[#FF2D94] text-white text-sm font-black px-4 py-2 rounded-xl disabled:opacity-50 shadow-sm">
-                      {saving ? "…" : "Save"}
-                    </button>
-                  </div>
-                )}
-                {!windowStarted && (
-                  <p className="text-xs text-white/65 mt-2 text-center">
-                    Locks when window opens · {formatBST(windowStart)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
+        <PredictionCard
+          joined={joined}
+          predictedTimeSecs={me?.predictedTimeSecs ?? null}
+          windowStarted={windowStarted}
+          windowStart={windowStart}
+          saving={saving}
+          predictInput={predictInput}
+          onSave={savePrediction}
+        />
 
         {/* ══ SECTION 2 — RESULTS ══ */}
-        <section>
-          {/* Section header */}
-          <div className="flex items-baseline justify-between mb-3">
-            <div>
-              {windowEnded
-                ? <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Post-Race Results</p>
-                : windowStarted
-                ? <p className="text-[10px] font-black text-[#39FF72] uppercase tracking-widest">● Live</p>
-                : <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">Pre-Race</p>
-              }
-              <p className="text-xl font-black text-[#F4F4F7]">Predictions vs. Actual</p>
-            </div>
-            {/* Strava attribution — required by Strava API Brand Guidelines */}
-            <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 opacity-50 hover:opacity-80 transition-opacity flex-shrink-0">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-              <span className="text-[9px] font-bold text-white/50">Powered by Strava</span>
-            </a>
-            {(windowStarted || windowEnded) && (
-              <button onClick={fetchResults} disabled={fetchingResults}
-                className="text-xs text-[#FF2D94] font-bold disabled:opacity-40">
-                {fetchingResults ? "…" : "🔄 Refresh"}
-              </button>
-            )}
-          </div>
-
-          {/* Winner hero card */}
-          {winner && hasAnyActual && (
-            <div className="relative bg-[#FF2D94] rounded-2xl p-4 mb-1 overflow-hidden shadow-md">
-              <svg viewBox="0 0 80 100" className="absolute right-2 top-0 w-16 h-20 text-white opacity-10" fill="currentColor">
-                <circle cx="52" cy="10" r="9"/><path d="M52 19 C48 30 40 38 34 48 L26 68" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/><path d="M44 30 L60 22 M40 42 L28 38" stroke="currentColor" strokeWidth="5" fill="none" strokeLinecap="round"/><path d="M34 48 L46 70 L42 86" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/><path d="M26 68 L14 82" stroke="currentColor" strokeWidth="6" fill="none" strokeLinecap="round"/>
-              </svg>
-              <p className="text-white/70 text-[10px] font-black uppercase tracking-widest mb-2">👑 Winner — Beat the Estimate</p>
-              <div className="flex items-center gap-3">
-                {winner.profilePic
-                  ? <img src={winner.profilePic} className="w-14 h-14 rounded-full object-cover border-2 border-white/20 flex-shrink-0" alt="" />
-                  : <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/20 flex items-center justify-center text-xl font-black text-white flex-shrink-0">{winner.firstName[0]}</div>
-                }
-                <div className="flex-1 min-w-0">
-                  <p className="text-lg font-black text-white">{winner.firstName}</p>
-                  <p className="text-white/70 text-xs">
-                    {winner.vdotPredictedSecs
-                      ? <>Est. {formatTime(winner.vdotPredictedSecs)} · beat by <span className="text-white font-black">{winner.vdotPredictedSecs - winner.actualTimeSecs!}s</span></>
-                      : <>Ran <span className="text-white font-black">{formatTime(winner.actualTimeSecs!)}</span></>
-                    }
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-3xl font-black text-white tabular-nums">{formatTime(winner.actualTimeSecs!)}</p>
-                  <p className="text-white/70 text-[10px] uppercase tracking-wide">actual</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Expandable runner cards */}
-          <div className="space-y-2.5">
-            {sorted.map((p, idx) => {
-              const verdict = commentary?.tips.find((t) => t.name === p.firstName);
-              return (
-                <RunnerCard
-                  key={p.id}
-                  p={p}
-                  rank={idx}
-                  isWinner={!!(winner?.userId === p.userId && hasAnyActual)}
-                  isMe={p.userId === currentUserId}
-                  isFastest={!!(fastest?.userId === p.userId && withResults.length > 1)}
-                  isSandbagger={!!(sandbagger?.userId === p.userId && withResults.length > 1)}
-                  isPb={!!(pbAlert?.userId === p.userId)}
-                  hasAnyResults={hasAnyActual}
-                  verdict={verdict}
-                  reactions={reactions[p.id] ?? {}}
-                  isExpanded={expandedCard === p.id}
-                  onToggle={() => setExpandedCard(expandedCard === p.id ? null : p.id)}
-                  onReact={(emoji) => handleReact("runner", p.id, emoji)}
-                  eventId={event.id}
-                  windowStarted={windowStarted}
-                  windowEnded={windowEnded}
-                  currentUserId={currentUserId}
-                  comments={initialComments[p.id] ?? []}
-                />
-              );
-            })}
-          </div>
-
-          {/* Refresh button */}
-          {(windowStarted || windowEnded) && (
-            <button onClick={fetchResults} disabled={fetchingResults}
-              className="w-full text-xs text-white/60 font-semibold py-2 rounded-xl border border-white/10 hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors disabled:opacity-40 bg-[#12151D]">
-              {fetchingResults ? "Fetching results…" : "🔄 Refresh Results"}
-            </button>
-          )}
-
-          {/* ── TROPHY PRESENTATION (post-race only) ── */}
-          {windowEnded && withResults.length >= 2 && (() => {
-            // Worst performer: ran most seconds OVER their own prediction
-            const worstPerformer = withResults.reduce((worst, p) => {
-              const gap = p.actualTimeSecs! - p.predictedTimeSecs!;
-              const worstGap = worst.actualTimeSecs! - worst.predictedTimeSecs!;
-              return gap > worstGap ? p : worst;
-            }, withResults[0]);
-            // Beat own prediction by most (predicted - actual, most positive)
-            const beatByMost = withResults
-              .filter(p => p.actualTimeSecs! < p.predictedTimeSecs!)
-              .sort((a, b) => (b.predictedTimeSecs! - b.actualTimeSecs!) - (a.predictedTimeSecs! - a.actualTimeSecs!))[0] ?? null;
-
-            const trophies = [
-              {
-                icon: "⚡",
-                title: "Speed Machine",
-                subtitle: "Fastest finish",
-                person: fastest,
-                stat: fastest ? formatTime(fastest.actualTimeSecs!) : null,
-                bg: "bg-[#00B7FF]/10",
-                border: "border-blue-100",
-                color: "text-blue-600",
-              },
-              {
-                icon: "🎯",
-                title: "Dead Eye",
-                subtitle: "Closest prediction",
-                person: withResults.length > 0 ? withResults.reduce((best, p) => {
-                  const bDiff = Math.abs(best.actualTimeSecs! - best.predictedTimeSecs!);
-                  const pDiff = Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!);
-                  return pDiff < bDiff ? p : best;
-                }, withResults[0]) : null,
-                stat: (() => { const p = withResults.length > 0 ? withResults.reduce((best, p) => Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!) < Math.abs(best.actualTimeSecs! - best.predictedTimeSecs!) ? p : best, withResults[0]) : null; return p ? `Off by ${Math.abs(p.actualTimeSecs! - p.predictedTimeSecs!)}s` : null; })(),
-                bg: "bg-[#171B25]",
-                border: "border-[#FFE8DC]",
-                color: "text-[#FF2D94]",
-              },
-              {
-                icon: "🚀",
-                title: "Rocket",
-                subtitle: "Beat prediction by most",
-                person: beatByMost,
-                stat: beatByMost ? `${beatByMost.predictedTimeSecs! - beatByMost.actualTimeSecs!}s faster` : null,
-                bg: "bg-[#39FF72]/10",
-                border: "border-green-100",
-                color: "text-[#39FF72]",
-              },
-              {
-                icon: "🐌",
-                title: "Slow Coach",
-                subtitle: "Furthest over prediction",
-                person: worstPerformer,
-                stat: worstPerformer && worstPerformer.actualTimeSecs! > worstPerformer.predictedTimeSecs!
-                  ? `+${worstPerformer.actualTimeSecs! - worstPerformer.predictedTimeSecs!}s over`
-                  : "Everyone beat their time!",
-                bg: "bg-[#FF6A3D]/10",
-                border: "border-amber-100",
-                color: "text-[#FF6A3D]",
-              },
-            ];
-
-            return (
-              <div>
-                <p className="text-[10px] font-black text-white/65 uppercase tracking-widest mb-3">🏆 Trophy Presentation</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {trophies.map(({ icon, title, subtitle, person, stat, bg, border, color }) => (
-                    <div key={title} className={`${bg} border ${border} rounded-2xl p-4 flex flex-col items-center text-center`}>
-                      <span className="text-3xl mb-2">{icon}</span>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${color}`}>{title}</p>
-                      <p className="text-[10px] text-white/65 mb-2">{subtitle}</p>
-                      {person ? (
-                        <>
-                          <div className="mb-1">
-                            {person.profilePic
-                              ? <img src={person.profilePic} className="w-8 h-8 rounded-full object-cover mx-auto" alt="" />
-                              : <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-black text-white/70 mx-auto">{person.firstName[0]}</div>
-                            }
-                          </div>
-                          <p className="text-sm font-black text-[#F4F4F7]">{person.firstName}</p>
-                          <p className={`text-xs font-bold tabular-nums ${color}`}>{stat}</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-white/65 italic">{stat ?? "—"}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Live stat chips (during race only) */}
-          {!windowEnded && withResults.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
-              {fastest && (
-                <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
-                  <p className="text-[10px] font-black text-[#00B7FF] uppercase tracking-wider mb-1">⚡ Fastest so far</p>
-                  <p className="text-[#F4F4F7] font-bold">{fastest.firstName}</p>
-                  <p className="text-[#00B7FF] font-black text-xl tabular-nums">{formatTime(fastest.actualTimeSecs!)}</p>
-                </div>
-              )}
-              {winner && (
-                <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
-                  <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-1">🎯 Leading</p>
-                  <p className="text-[#F4F4F7] font-bold">{winner.firstName}</p>
-                  <p className="text-[#FF2D94] font-black text-xl tabular-nums">{winner.vdotPredictedSecs ? `Beat est. by ${winner.vdotPredictedSecs - winner.actualTimeSecs!}s` : formatTime(winner.actualTimeSecs!)}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+        <ResultsSection
+          participants={localParticipants}
+          commentary={commentary}
+          currentUserId={currentUserId}
+          windowStarted={windowStarted}
+          windowEnded={windowEnded}
+          eventId={event.id}
+          reactions={reactions}
+          comments={initialComments}
+          expandedCard={expandedCard}
+          onToggleExpand={setExpandedCard}
+          onReact={handleReact}
+          fetchResults={fetchResults}
+          fetchingResults={fetchingResults}
+        />
 
         {/* ══ SECTION 2b — BETTING BOARD ══ */}
         {commentary && commentary.tips.length > 0 && (
@@ -674,66 +380,16 @@ export default function EventDetailClient({
         )}
 
         {/* ══ SECTION 3 — TIPS ══ */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <img src="/tips-avatar.jpeg" alt="Tips" className="w-12 h-12 rounded-full object-cover border-2 border-[#FF2D94] shadow-sm" />
-              <div>
-                <p className="text-[10px] font-black text-white/65 uppercase tracking-widest">AI Tipster</p>
-                <p className="text-xl font-black text-[#F4F4F7]">Tips</p>
-              </div>
-            </div>
-            {commentary && (
-              <button onClick={copyRaceCard}
-                className="bg-[#12151D] border border-white/10 text-white/70 text-xs font-semibold px-3 py-2 rounded-xl hover:border-[#FF2D94] hover:text-[#FF2D94] transition-colors whitespace-nowrap shadow-sm">
-                {cardCopied ? "Copied!" : "Share"}
-              </button>
-            )}
-          </div>
-
-          {commentary ? (
-            <div className="space-y-3">
-              {/* Pre-event: intro overview only */}
-              {!windowEnded && (
-                <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
-                  <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-2">🎩 Pre-Race Overview</p>
-                  <p className="text-white/70 text-sm leading-relaxed italic">{commentary.intro}</p>
-                  <ReactionBar
-                    reactions={reactions[event.id] ?? {}}
-                    onReact={(emoji) => handleReact("tipster", event.id, emoji)}
-                  />
-                </div>
-              )}
-
-              {/* Post-event: closing memo only */}
-              {windowEnded && (
-                <div className="bg-[#0B0D12] rounded-2xl p-4">
-                  <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-2">🎩 Post-Race Verdict</p>
-                  <p className="text-white/90 text-sm leading-relaxed italic">
-                    {commentary.postRaceIntro ?? commentary.intro}
-                  </p>
-                  <ReactionBar
-                    reactions={reactions[event.id] ?? {}}
-                    onReact={(emoji) => handleReact("tipster", event.id, emoji)}
-                  />
-                </div>
-              )}
-
-              <p className="text-center text-xs text-white/50">
-                Generated {new Date(raceCard!.generatedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                {windowEnded && !commentary.postRaceIntro && (
-                  <span className="block text-[#FF2D94] mt-1">Regenerate for post-race verdicts ↑</span>
-                )}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-8 text-center">
-              <p className="text-4xl mb-2">🎙️</p>
-              <p className="text-white/65 text-sm font-semibold">{windowEnded ? "No post-race verdict yet." : "No pre-race tips yet."}</p>
-              <p className="text-white/50 text-xs mt-1">Tips auto-generates when runners join. Check back shortly.</p>
-            </div>
-          )}
-        </section>
+        <TipsSection
+          commentary={commentary}
+          generatedAt={raceCard?.generatedAt}
+          windowEnded={windowEnded}
+          eventId={event.id}
+          reactions={reactions}
+          onReact={handleReact}
+          cardCopied={cardCopied}
+          onCopyRaceCard={copyRaceCard}
+        />
 
         {/* ══ SECTION 4 — RACE BANTER ══ */}
         <section>

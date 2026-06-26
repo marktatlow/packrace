@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "./prisma";
 import { formatTime } from "./format";
+import { refreshTokenIfNeeded } from "./strava";
+import { getAthleteLocation, getForecast, type ConditionsForecast } from "./weather";
 
 const client = new Anthropic();
 
@@ -12,15 +14,23 @@ export type TipsterEntry = {
   oddsNote?: string;
   fastestOdds?: string;      // odds of being fastest runner
   fastestOddsNote?: string;
-  sandbagOdds?: string;      // odds of being biggest sandbagger
-  sandbagOddsNote?: string;
   postRaceVerdict?: string;
+};
+
+export type TierGroup = {
+  tierName: string;
+  accent: string;          // hex colour for UI
+  runnerNames: string[];
+  story: string;           // 2-sentence scene-setter for this group
+  tipsLine: string;        // short savage one-liner verdict
 };
 
 export type RaceCardCommentary = {
   intro: string;
   tips: TipsterEntry[];
   postRaceIntro?: string;
+  tiers?: TierGroup[];
+  conditions?: ConditionsForecast[];
 };
 
 const VOICE = `You are "Tips" — a brutally perceptive race commentator: part elite running coach, part pub heckler, part disappointed PE teacher. Acerbic, intelligent, dry, cutting. Sarcasm encouraged. Zero fluff. Humour from insight. Safe for a group chat: spicy, not genuinely nasty. Max 35 words per runner, max 2 sentences. Always mention the runner's name.
@@ -197,15 +207,43 @@ export async function updateRaceIntro(
     return `- ${p.user.firstName}: predicted ${predTime} | my estimate ${estTime}${actualLine}`;
   }).join("\n");
 
+  // Coarse per-runner location + race-day conditions, if already resolved
+  // (via updateRaceTiers / updateRaceConditions). Best-effort — older cards
+  // without this data just skip the conditions framing entirely.
+  const existingCard = await loadCard(eventId);
+  const cityByName = new Map<string, string>();
+  for (const p of event.participants) {
+    try {
+      const accessToken = await refreshTokenIfNeeded(p.userId);
+      const loc = await getAthleteLocation(accessToken, p.user.city);
+      if (loc) cityByName.set(p.user.firstName, loc.city);
+    } catch { /* no city context for this runner */ }
+  }
+  const locationLines = event.participants
+    .map((p) => cityByName.get(p.user.firstName) ? `${p.user.firstName} (${cityByName.get(p.user.firstName)})` : null)
+    .filter(Boolean)
+    .join(", ");
+
+  const conditionDescriptor = (icon: string) => ({
+    "🥵": "sweltering heat", "🥶": "bitter cold", "☔": "rain", "💨": "strong wind", "🙂": "mild, easy conditions",
+  } as Record<string, string>)[icon] ?? "mixed conditions";
+  const conditionsLines = (existingCard?.conditions ?? [])
+    .map((c) => `${c.city}: ${conditionDescriptor(c.icon)}`)
+    .join("; ");
+
+  const conditionsContext = (locationLines || conditionsLines)
+    ? `\n\nLocations: ${locationLines || "unknown"}${conditionsLines ? `\nConditions on the day: ${conditionsLines}` : ""}\nWeave the geography and conditions into your commentary where it's fun or relevant — e.g. who's got it easy, who's facing a tougher environment. Coarse city-level only, no exact temperatures or numbers.`
+    : "";
+
   let prompt: string;
 
   if (mode === "post-race") {
     prompt = `${VOICE}
 
 The ${event.distanceKm}km race is over. Final results:
-${runnerLines}
+${runnerLines}${conditionsContext}
 
-Write a 2-3 sentence overall closing race summary — who was the star, the biggest surprise, the biggest disappointment. Savage but fair.
+Write a 2-3 sentence overall closing race summary — who was the star, the biggest surprise, the biggest disappointment. Savage but fair. If conditions were notably tough or easy somewhere, you can use that as part of the story (e.g. an excuse that doesn't hold up, or a genuine advantage).
 
 Respond ONLY with valid JSON:
 { "postRaceIntro": "closing summary here" }`;
@@ -215,7 +253,7 @@ Respond ONLY with valid JSON:
 Race day is HERE. ${event.distanceKm}km. The window opens soon.
 
 The field:
-${runnerLines}
+${runnerLines}${conditionsContext}
 
 Write a 2-sentence race-day intro — full of anticipation, tension, and dry sarcasm. Get them hyped.
 
@@ -234,7 +272,7 @@ Respond ONLY with valid JSON:
 Pre-race briefing for the ${event.distanceKm}km event on ${new Date(event.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
 
 The field so far:
-${runnerLines}${changeCallout}
+${runnerLines}${changeCallout}${conditionsContext}
 
 Write a 2-sentence intro that sets the scene for this race.${change ? ` One sentence MUST reference ${change.name}'s prediction change.` : ""}
 
@@ -261,9 +299,165 @@ Respond ONLY with valid JSON:
   await saveCard(eventId, card);
 }
 
-// ─── Sandbagger odds helper ───────────────────────────────────────────────────
-// Computed deterministically from gap data — no AI needed.
-// gap = predictedTimeSecs - vdotPredictedSecs (positive = sandbagging)
+// ─── TIERS — group the field by predicted-pace clusters ─────────────────────
+export const TIER_NAMES = ["Champions League", "Europa League", "Championship", "League One", "League Two", "National League"];
+export const TIER_COLORS = ["#FF2D94", "#00B7FF", "#FFC700", "#39FF72", "#FF6A3D", "#8A93A6"];
+
+const TARGET_DIVISION_SIZE = 3;
+
+// Split a pace-sorted field into divisions of ~TARGET_DIVISION_SIZE runners each,
+// scaling the number of divisions to the field size. Division count is chosen to
+// land closest to the target average size, then the field is split into
+// contiguous pace-ordered groups (fastest division first) with any remainder
+// spread across the slowest divisions so the competitive top groups stay tight.
+function splitIntoDivisions<T>(sorted: T[]): T[][] {
+  const n = sorted.length;
+  if (n === 0) return [];
+
+  const divisionCount = Math.max(1, Math.round(n / TARGET_DIVISION_SIZE));
+  const base = Math.floor(n / divisionCount);
+  const remainder = n % divisionCount;
+
+  const groups: T[][] = [];
+  let idx = 0;
+  for (let i = 0; i < divisionCount; i++) {
+    // Extra runner goes to the LAST divisions, so the top (fastest) groups
+    // stay closest to the target size for tighter head-to-head drama.
+    const size = base + (i >= divisionCount - remainder ? 1 : 0);
+    groups.push(sorted.slice(idx, idx + size));
+    idx += size;
+  }
+  return groups;
+}
+
+// ─── UPDATE TIER STORIES ──────────────────────────────────────────────────────
+// Groups the field into pace-based "divisions" and gets Tips to write a
+// scene-setter + one-liner verdict for each. Pre-race only.
+export async function updateRaceTiers(eventId: string): Promise<void> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      participants: {
+        include: { user: true },
+        where: { predictedTimeSecs: { not: null } },
+        orderBy: { predictedTimeSecs: "asc" },
+      },
+    },
+  });
+  if (!event || event.participants.length < 4) return; // not enough runners for tiers to mean anything
+  if (new Date() >= event.windowStart) return; // lock at race start, same as odds
+
+  // Coarse location per runner — same city-level resolution used for conditions.
+  // Best-effort only: a failed lookup just means that runner has no city context.
+  const cityByName = new Map<string, string>();
+  for (const p of event.participants) {
+    try {
+      const accessToken = await refreshTokenIfNeeded(p.userId);
+      const loc = await getAthleteLocation(accessToken, p.user.city);
+      if (loc) cityByName.set(p.user.firstName, loc.city);
+    } catch { /* no city context for this runner */ }
+  }
+
+  const sorted = event.participants.map((p) => ({
+    name: p.user.firstName,
+    secs: p.predictedTimeSecs!,
+    estSecs: p.vdotPredictedSecs,
+    city: cityByName.get(p.user.firstName) ?? null,
+  }));
+
+  const groups = splitIntoDivisions(sorted);
+
+  const groupContext = groups.map((g, i) => {
+    const lines = g.map((r) =>
+      `${r.name}${r.city ? ` (${r.city})` : ""}: predicted ${formatTime(r.secs)}${r.estSecs ? ` (my estimate ${formatTime(r.estSecs)})` : ""}`
+    ).join("; ");
+    return `Tier ${i + 1} — ${TIER_NAMES[i] ?? `Division ${i + 1}`}: ${lines}`;
+  }).join("\n");
+
+  const prompt = `${VOICE}
+
+The field has been split into tiers by predicted pace, fastest tier first. Each runner has a city in brackets where known — this is COARSE city-level info, fine to use directly for flavour since this is a small private friend group. For EACH tier below, write:
+- "story": a scene-setter for that specific group, referencing their predictions/estimates qualitatively. Feel free to call out a runner's city/region directly where it adds fun colour — e.g. "while half the southern hemisphere crew enjoy winter sun, the Londoners are training through a heatwave." Max 2 sentences, max 40 words.
+- "tipsLine": ONE short savage one-line verdict on that tier — punchier and shorter than the story. Max 15 words.
+
+Tiers:
+${groupContext}
+
+Respond ONLY with valid JSON:
+{ "tiers": [ { "tierIndex": 0, "story": "...", "tipsLine": "..." }, ... ] }`;
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 700,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return;
+  const result = JSON.parse(jsonMatch[0]) as { tiers: { tierIndex: number; story: string; tipsLine: string }[] };
+
+  const tierGroups: TierGroup[] = groups.map((g, i) => {
+    const aiTier = result.tiers?.find((t) => t.tierIndex === i);
+    return {
+      tierName: TIER_NAMES[i] ?? `Division ${i + 1}`,
+      accent: TIER_COLORS[i % TIER_COLORS.length],
+      runnerNames: g.map((r) => r.name),
+      story: aiTier?.story ?? "",
+      tipsLine: aiTier?.tipsLine ?? "",
+    };
+  });
+
+  const card = await loadCard(eventId) ?? { intro: "", tips: [] };
+  card.tiers = tierGroups;
+  await saveCard(eventId, card);
+}
+
+// ─── UPDATE RACE-DAY CONDITIONS ───────────────────────────────────────────────
+// One forecast per distinct athlete location, derived from their most recent
+// GPS-tagged run (falls back to their Strava profile city). Adjustment % is a
+// rough, display-only heat/humidity estimate — NOT applied to predictions.
+export async function updateRaceConditions(eventId: string): Promise<void> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: { participants: { include: { user: true }, where: { predictedTimeSecs: { not: null } } } },
+  });
+  if (!event || event.participants.length === 0) return;
+
+  // De-dupe by actual distance (~40km), not grid cell or city name — metro
+  // areas like Greater London span more than one rounded grid cell, and
+  // reverse geocoding can label two nearby points "London" vs "Greater London".
+  const DEDUPE_RADIUS_KM = 40;
+  function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  const seen: { lat: number; lon: number; forecast: ConditionsForecast }[] = [];
+
+  for (const p of event.participants) {
+    const user = p.user;
+    try {
+      const accessToken = await refreshTokenIfNeeded(user.id);
+      const loc = await getAthleteLocation(accessToken, user.city);
+      if (!loc) continue;
+      if (seen.some((s) => haversineKm(s.lat, s.lon, loc.lat, loc.lon) < DEDUPE_RADIUS_KM)) continue;
+
+      const forecast = await getForecast(loc.lat, loc.lon, event.windowStart.toISOString());
+      if (forecast) seen.push({ lat: loc.lat, lon: loc.lon, forecast: { ...forecast, city: loc.city } });
+    } catch { /* skip athletes whose token/location can't be resolved */ }
+  }
+
+  if (seen.length === 0) return;
+
+  const card = await loadCard(eventId) ?? { intro: "", tips: [] };
+  card.conditions = seen.map((s) => s.forecast);
+  await saveCard(eventId, card);
+}
+
 function decimalToFractional(dec: number): string {
   if (dec <= 1.05) return "1/20";
   if (dec <= 1.12) return "1/10";
@@ -299,47 +493,6 @@ function decimalToFractional(dec: number): string {
   if (dec <= 28.0) return "20/1";
   if (dec <= 36.0) return "25/1";
   return "33/1";
-}
-
-const SANDBAG_NOTES = [
-  "Hiding serious pace. Banker.",
-  "Suspiciously conservative prediction.",
-  "That gap is very telling.",
-  "Slight padding. Noted.",
-  "Honest. Suspiciously honest.",
-  "Backing themselves a little hard.",
-  "Form doesn't support the prediction.",
-  "Firmly in denial here.",
-  "Confidence outpacing the evidence.",
-  "Pure optimism. Nothing more.",
-];
-
-function computeSandbagOdds(
-  participants: { firstName: string; predictedTimeSecs: number | null; vdotPredictedSecs: number | null }[]
-): Map<string, { odds: string; note: string }> {
-  const rawGaps = participants.map((p) => ({
-    name: p.firstName,
-    raw: p.vdotPredictedSecs && p.predictedTimeSecs
-      ? p.predictedTimeSecs - p.vdotPredictedSecs
-      : 0,
-  })).sort((a, b) => b.raw - a.raw); // most sandbagging first
-
-  const minRaw = Math.min(...rawGaps.map((g) => g.raw));
-  const gaps = rawGaps.map((g) => ({ ...g, weight: g.raw - minRaw }));
-  const totalWeight = gaps.reduce((s, g) => s + g.weight, 0);
-  const OVERROUND = 1.15;
-
-  return new Map(gaps.map((g, rank) => {
-    let dec: number;
-    if (totalWeight === 0) {
-      dec = 1 + (participants.length - 1) * OVERROUND;
-    } else {
-      const implied = (g.weight / totalWeight) / OVERROUND;
-      dec = implied > 0 ? 1 / implied : 34;
-    }
-    const note = SANDBAG_NOTES[rank] ?? SANDBAG_NOTES[SANDBAG_NOTES.length - 1];
-    return [g.name, { odds: decimalToFractional(dec), note }];
-  }));
 }
 
 // ─── Beat estimate odds helper ───────────────────────────────────────────────
@@ -450,7 +603,6 @@ export async function updateAllOdds(eventId: string): Promise<void> {
 
   // Odds: computed deterministically — accurate, instant, no AI
   const fastestMap = computeFastestOdds(participantData);
-  const sandbagMap = computeSandbagOdds(participantData);
   const beatMap    = computeBeatEstimateOdds(participantData);
 
   // Notes: Tips AI writes savage one-liners per runner per market
@@ -461,7 +613,7 @@ export async function updateAllOdds(eventId: string): Promise<void> {
 
   const notesPrompt = `${VOICE}
 
-Write a savage, UNIQUE sub-caption for each runner across three betting markets. STRICT rules:
+Write a savage, UNIQUE sub-caption for each runner across two betting markets. STRICT rules:
 - MAX 5 WORDS per note
 - NO runner names (shown separately)
 - Every note must be different — no repeated phrases
@@ -473,15 +625,13 @@ ${runnerContext}
 Respond ONLY with valid JSON:
 {
   "fastest":  [{ "name": "FirstName", "note": "max 5 words" }],
-  "beat":     [{ "name": "FirstName", "note": "max 5 words" }],
-  "sandbag":  [{ "name": "FirstName", "note": "max 5 words" }]
+  "beat":     [{ "name": "FirstName", "note": "max 5 words" }]
 }`;
 
   let notes: {
     fastest: { name: string; note: string }[];
     beat:    { name: string; note: string }[];
-    sandbag: { name: string; note: string }[];
-  } = { fastest: [], beat: [], sandbag: [] };
+  } = { fastest: [], beat: [] };
 
   try {
     const res = await client.messages.create({
@@ -501,15 +651,14 @@ Respond ONLY with valid JSON:
     map.get(name.toLowerCase());
   const fastestNotes = noteMap(notes.fastest);
   const beatNotes    = noteMap(notes.beat);
-  const sandbagNotes = noteMap(notes.sandbag);
 
   const card = await loadCard(eventId) ?? { intro: "", tips: [] };
 
   const applyMap = (
     map: Map<string, { odds: string; note: string }>,
     aiNotes: Map<string, string>,
-    oddsKey: "fastestOdds" | "odds" | "sandbagOdds",
-    noteKey: "fastestOddsNote" | "oddsNote" | "sandbagOddsNote",
+    oddsKey: "fastestOdds" | "odds",
+    noteKey: "fastestOddsNote" | "oddsNote",
   ) => {
     for (const [name, val] of map) {
       const idx = card.tips.findIndex((t) => t.name === name);
@@ -525,7 +674,6 @@ Respond ONLY with valid JSON:
 
   applyMap(fastestMap, fastestNotes, "fastestOdds", "fastestOddsNote");
   applyMap(beatMap,    beatNotes,    "odds",         "oddsNote");
-  applyMap(sandbagMap, sandbagNotes, "sandbagOdds",  "sandbagOddsNote");
 
   await saveCard(eventId, card);
 }
@@ -551,9 +699,11 @@ export async function generateRaceCard(eventId: string): Promise<void> {
     await updateRunnerTip(eventId, p.userId).catch(() => {});
   }
 
-  // Update all three odds markets across the whole field
+  // Update both odds markets across the whole field
   if (!windowEnded) {
     await updateAllOdds(eventId).catch(() => {});
+    await updateRaceTiers(eventId).catch(() => {});
+    await updateRaceConditions(eventId).catch(() => {});
   }
 
   // Update the race intro with appropriate mode

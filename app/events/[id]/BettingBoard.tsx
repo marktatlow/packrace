@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trophy, Crosshair, Drama, Flame, Zap, X, Plus, Share2, Lock } from "lucide-react";
+import { Trophy, Crosshair, Flame, Zap, X, Plus, Share2, Lock } from "lucide-react";
 import type { TipsterEntry } from "@/lib/racecard";
 
 // ── Colour palette ────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ function PosBadge({ pos, size = 34 }: { pos: number; size?: number }) {
 }
 
 export default function BettingBoard({ eventName, distanceKm, windowStart, participants, tips, windowStarted, windowEnded }: Props) {
-  const [market, setMarket] = useState<"fastest" | "beat" | "sandbag">("fastest");
+  const [market, setMarket] = useState<"fastest" | "beat">("fastest");
   const [frac, setFrac] = useState(true);
   const [slip, setSlip] = useState<SlipItem[]>([]);
 
@@ -98,13 +98,9 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
   const buildMarket = () => {
     return participants
       .filter((p) => p.vdotPredictedSecs && p.predictedTimeSecs)
-      .map((p, idx) => {
+      .map((p) => {
         const tip = tips.find((t) => t.name === p.firstName);
         // pos assigned after sort
-        const sandbaggingGap = p.vdotPredictedSecs && p.predictedTimeSecs
-          ? p.predictedTimeSecs - p.vdotPredictedSecs  // positive = sandbagging
-          : 0;
-
         if (market === "fastest") {
           return {
             name: p.firstName, pos: 0, // assigned after sort
@@ -112,18 +108,10 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
             note: tip?.fastestOddsNote ?? "—",
           };
         }
-        if (market === "beat") {
-          return {
-            name: p.firstName, pos: 0, // assigned after sort
-            o: parseOdds(tip?.odds),
-            note: tip?.oddsNote ?? "—",
-          };
-        }
-        // sandbagger market — from AI-generated odds
         return {
           name: p.firstName, pos: 0, // assigned after sort
-          o: parseOdds(tip?.sandbagOdds),
-          note: tip?.sandbagOddsNote ?? "—",
+          o: parseOdds(tip?.odds),
+          note: tip?.oddsNote ?? "—",
         };
       })
       .sort((a, b) => decimalOdds(a.o) - decimalOdds(b.o));
@@ -134,7 +122,6 @@ export default function BettingBoard({ eventName, distanceKm, windowStart, parti
   const MARKETS = {
     fastest: { label: "Fastest Runner", sub: "To record the quickest actual time", icon: Trophy, accent: C.green },
     beat:    { label: "Beat the Estimate", sub: "Who will beat their own predicted time", icon: Crosshair, accent: C.blue },
-    sandbag: { label: "Biggest Sandbagger", sub: "Novelty · biggest gap between prediction and form", icon: Drama, accent: C.orange },
   } as const;
 
   const m = MARKETS[market];
