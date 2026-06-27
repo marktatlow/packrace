@@ -55,9 +55,10 @@ export default function RunnerCard({
   verdict, reactions, isExpanded, onToggle, onReact,
   eventId, windowStarted, windowEnded, currentUserId, comments,
 }: Props) {
-  // Beat-estimate margin: positive = beat it, negative = missed it
-  const beatMargin = p.vdotPredictedSecs && p.actualTimeSecs
-    ? p.vdotPredictedSecs - p.actualTimeSecs
+  // Beat-estimate margin: actual vs the runner's OWN predicted time —
+  // positive = beat it, negative = missed it
+  const beatMargin = p.predictedTimeSecs && p.actualTimeSecs
+    ? p.predictedTimeSecs - p.actualTimeSecs
     : null;
 
   const marginColor = beatMargin === null ? "text-white/30"

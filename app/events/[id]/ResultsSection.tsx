@@ -47,12 +47,12 @@ export default function ResultsSection({
       return a.predictedTimeSecs - b.predictedTimeSecs;
     }
 
-    const aMargin = a.vdotPredictedSecs && a.actualTimeSecs
-      ? a.vdotPredictedSecs - a.actualTimeSecs
+    const aMargin = a.predictedTimeSecs && a.actualTimeSecs
+      ? a.predictedTimeSecs - a.actualTimeSecs
       : a.actualTimeSecs ? -Infinity
       : null;
-    const bMargin = b.vdotPredictedSecs && b.actualTimeSecs
-      ? b.vdotPredictedSecs - b.actualTimeSecs
+    const bMargin = b.predictedTimeSecs && b.actualTimeSecs
+      ? b.predictedTimeSecs - b.actualTimeSecs
       : b.actualTimeSecs ? -Infinity
       : null;
 
@@ -69,8 +69,8 @@ export default function ResultsSection({
   const withResults = sorted.filter((p) => p.predictedTimeSecs && p.actualTimeSecs);
   const winner = withResults.length > 0
     ? withResults
-        .filter((p) => p.vdotPredictedSecs != null && p.actualTimeSecs! < p.vdotPredictedSecs)
-        .sort((a, b) => (b.vdotPredictedSecs! - b.actualTimeSecs!) - (a.vdotPredictedSecs! - a.actualTimeSecs!))[0]
+        .filter((p) => p.predictedTimeSecs != null && p.actualTimeSecs! < p.predictedTimeSecs)
+        .sort((a, b) => (b.predictedTimeSecs! - b.actualTimeSecs!) - (a.predictedTimeSecs! - a.actualTimeSecs!))[0]
         ?? null
     : null;
   const fastest = withResults.length > 0
@@ -129,8 +129,8 @@ export default function ResultsSection({
             <div className="flex-1 min-w-0">
               <p className="text-lg font-black text-white">{winner.firstName}</p>
               <p className="text-white/70 text-xs">
-                {winner.vdotPredictedSecs
-                  ? <>Est. {formatTime(winner.vdotPredictedSecs)} · beat by <span className="text-white font-black">{winner.vdotPredictedSecs - winner.actualTimeSecs!}s</span></>
+                {winner.predictedTimeSecs
+                  ? <>Predicted {formatTime(winner.predictedTimeSecs)} · beat by <span className="text-white font-black">{winner.predictedTimeSecs - winner.actualTimeSecs!}s</span></>
                   : <>Ran <span className="text-white font-black">{formatTime(winner.actualTimeSecs!)}</span></>
                 }
               </p>
@@ -285,7 +285,7 @@ export default function ResultsSection({
             <div className="bg-[#12151D] rounded-2xl card-depth border border-white/10 p-4">
               <p className="text-[10px] font-black text-[#FF2D94] uppercase tracking-wider mb-1">🎯 Leading</p>
               <p className="text-[#F4F4F7] font-bold">{winner.firstName}</p>
-              <p className="text-[#FF2D94] font-black text-xl tabular-nums">{winner.vdotPredictedSecs ? `Beat est. by ${winner.vdotPredictedSecs - winner.actualTimeSecs!}s` : formatTime(winner.actualTimeSecs!)}</p>
+              <p className="text-[#FF2D94] font-black text-xl tabular-nums">{winner.predictedTimeSecs ? `Beat est. by ${winner.predictedTimeSecs - winner.actualTimeSecs!}s` : formatTime(winner.actualTimeSecs!)}</p>
             </div>
           )}
         </div>

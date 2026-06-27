@@ -108,8 +108,7 @@ export async function processActivityForUser(
   const activity = await res.json();
 
   if (!RUN_TYPES.includes(activity.sport_type ?? activity.type)) return `not a run: ${activity.sport_type ?? activity.type}`;
-  // Exclude treadmill / indoor trainer runs — outdoor only
-  if (activity.trainer === true) return `treadmill run excluded`;
+  // Treadmill/indoor trainer runs ARE allowed — this is a fun event, not a regulated race.
   if (activity.manual === true) return `manual entry excluded`;
 
   const activityDate = new Date(activity.start_date);
@@ -223,7 +222,7 @@ export async function fetchResultsForEvent(eventId: string, isLive = false) {
         (a: { type: string; sport_type?: string; distance: number; trainer?: boolean; manual?: boolean }) =>
           RUN_TYPES.includes(a.sport_type ?? a.type) &&
           a.distance >= targetMeters * 0.96 &&
-          !a.trainer &&   // exclude treadmill
+          // Treadmill/indoor trainer runs ARE allowed — this is a fun event, not a regulated race.
           !a.manual       // exclude manual entries
       );
 
